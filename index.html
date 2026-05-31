@@ -7,6 +7,8 @@
 <title>Port Lotniczy Lublin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
 <style>
   :root {
     --navy:#0a1628;--navy-mid:#132040;--navy-light:#1e3160;
@@ -34,15 +36,16 @@
   .btn-gold:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 16px rgba(201,168,76,.35)}
   .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
   .btn-outline:hover:not(:disabled){background:var(--gold-pale);border-color:var(--gold)}
+  .btn-danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+  .btn-danger:hover:not(:disabled){background:#fdf0f0}
   .status-bar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .status-indicator{display:flex;align-items:center;gap:8px;font-size:13px}
   .status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
   .status-dot.ready{background:#27ae60}
   .status-dot.working{background:var(--gold);animation:pulse 1s infinite}
-  .status-dot.error{background:var(--danger)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
   .status-text{color:var(--text-muted)}
-  .toolbar{display:flex;gap:8px;align-items:center}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .main{flex:1;background:var(--cream)}
   .doc-area{padding:32px 24px;max-width:860px;margin:0 auto;width:100%}
   .doc-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;text-align:center;gap:16px;color:var(--text-muted)}
@@ -83,17 +86,17 @@
   .modal p{font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}
   .form-group{margin-bottom:16px}
   .form-label{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
-  .form-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:monospace;font-size:13px;color:var(--text);background:var(--cream);transition:border-color .15s}
+  .form-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--cream);transition:border-color .15s}
   .form-input:focus{outline:none;border-color:var(--gold);background:var(--white)}
+  .form-input-mono{font-family:monospace}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
   .toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:var(--white);padding:12px 18px;border-radius:var(--radius);font-size:13px;border-left:3px solid var(--gold);box-shadow:var(--shadow-lg);z-index:300;transform:translateY(80px);opacity:0;transition:all .25s ease;max-width:340px;line-height:1.5}
   .toast.visible{transform:translateY(0);opacity:1}
   .toast.error{border-left-color:var(--danger)}
   .toast.success{border-left-color:#27ae60}
-
-  @media print {
+  @media print{
     .header,.status-bar,.modal-overlay,.toast{display:none!important}
-    body{background:white;font-size:12pt}
+    body{background:white}
     .main{background:white}
     .doc-area{padding:0;max-width:100%}
     .doc-content{box-shadow:none;border:none}
@@ -105,24 +108,8 @@
     .doc-body blockquote{background:#f5e9c8 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .doc-body table{page-break-inside:avoid}
     .doc-body h2{page-break-after:avoid}
-
-    @page {
-      size: A4;
-      margin: 2cm 2cm 2.5cm 2cm;
-      @bottom-center {
-        content: "Strona " counter(page) " / " counter(pages);
-        font-family: 'DM Sans', sans-serif;
-        font-size: 9pt;
-        color: #5a6a8a;
-      }
-      @bottom-left {
-        content: "Port Lotniczy Lublin S.A. — Materiał Poufny";
-        font-size: 8pt;
-        color: #5a6a8a;
-      }
-    }
+    @page{size:A4;margin:2cm 2cm 2.5cm 2cm;@bottom-center{content:"Strona " counter(page) " / " counter(pages);font-size:9pt;color:#5a6a8a;}@bottom-left{content:"Port Lotniczy Lublin S.A.";font-size:8pt;color:#5a6a8a;}}
   }
-
   @media(max-width:600px){
     .header{padding:0 16px}
     .logo-text{font-size:13px}
@@ -130,6 +117,7 @@
     .doc-area{padding:16px}
     .doc-body{padding:18px}
     .doc-header-band{padding:16px 18px}
+    .toolbar{gap:4px}
   }
 </style>
 </head>
@@ -158,7 +146,7 @@
   <div class="toolbar">
     <button class="btn btn-gold" id="btnPaste" onclick="pasteAndProcess()">📋 <span>Wklej i formatuj</span></button>
     <button class="btn btn-outline" id="btnPrint" onclick="window.print()" disabled>🖨️ <span>Drukuj</span></button>
-    <button class="btn btn-outline" id="btnEmail" onclick="emailDoc()" disabled>✉️ <span>E-mail</span></button>
+    <button class="btn btn-outline" id="btnEmail" onclick="sendEmail()" disabled>✉️ <span>Wyślij e-mail</span></button>
   </div>
 </div>
 <main class="main">
@@ -171,12 +159,12 @@
         <div class="step"><div class="step-num">1</div><span>Zapisz klucz API Claude</span></div>
         <div class="step"><div class="step-num">2</div><span>Kopiuj tekst z ChatGPT</span></div>
         <div class="step"><div class="step-num">3</div><span>Kliknij „Wklej i formatuj"</span></div>
-        <div class="step"><div class="step-num">4</div><span>Drukuj lub wyślij e-mail</span></div>
+        <div class="step"><div class="step-num">4</div><span>Wyślij e-mail z załącznikami</span></div>
       </div>
     </div>
     <div class="loading-overlay" id="loadingOverlay">
       <div class="spinner"></div>
-      <div class="loading-text">Claude formatuje dokument…<br>Zwykle trwa to 15–30 sekund.</div>
+      <div class="loading-text" id="loadingText">Claude formatuje dokument…<br>Zwykle trwa to 15–30 sekund.</div>
     </div>
     <div class="doc-content" id="docContent" style="display:none">
       <div class="doc-header-band">
@@ -187,13 +175,15 @@
     </div>
   </div>
 </main>
+
+<!-- API MODAL -->
 <div class="modal-overlay" id="apiModal" onclick="if(event.target===this)closeApiModal()">
   <div class="modal">
     <h2>Klucz API Claude</h2>
     <p>Klucz zapisywany lokalnie w przeglądarce. Używany wyłącznie do wywołań przez serwer Netlify.</p>
     <div class="form-group">
       <label class="form-label" for="apiKeyInput">Klucz API (sk-ant-…)</label>
-      <input class="form-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off">
+      <input class="form-input form-input-mono" type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off">
     </div>
     <div id="apiStatus" style="font-size:13px;color:var(--text-muted);min-height:18px;"></div>
     <div class="modal-actions">
@@ -202,11 +192,35 @@
     </div>
   </div>
 </div>
+
+<!-- EMAIL MODAL -->
+<div class="modal-overlay" id="emailModal" onclick="if(event.target===this)closeEmailModal()">
+  <div class="modal">
+    <h2>Wyślij e-mail</h2>
+    <p>Aplikacja wygeneruje pliki Word i PDF bez metadanych i otworzy klienta pocztowego z załącznikami gotowymi do wysyłki.</p>
+    <div class="form-group">
+      <label class="form-label" for="emailTo">Adres e-mail odbiorcy</label>
+      <input class="form-input" type="email" id="emailTo" placeholder="odbiorca@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="emailSubject">Temat</label>
+      <input class="form-input" type="text" id="emailSubject" placeholder="Temat wiadomości">
+    </div>
+    <div id="emailStatus" style="font-size:13px;color:var(--text-muted);min-height:18px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeEmailModal()">Anuluj</button>
+      <button class="btn btn-gold" id="btnSendEmail" onclick="generateAndSend()">📎 Generuj i wyślij</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
+
 <script>
 let apiKey = localStorage.getItem('claudeApiKey') || '';
 let currentMode = 'rada';
 let hasDoc = false;
+let currentTitle = 'Dokument';
 
 window.addEventListener('DOMContentLoaded', updateStatus);
 
@@ -230,6 +244,7 @@ function setMode(mode) {
     : 'MATERIAŁ DLA ZARZĄDU · PORT LOTNICZY LUBLIN S.A.';
 }
 
+// --- API MODAL ---
 function showApiModal() {
   document.getElementById('apiKeyInput').value = '';
   document.getElementById('apiStatus').textContent = apiKey ? '✅ Klucz już zapisany. Wklej nowy, aby zmienić.' : '';
@@ -237,7 +252,6 @@ function showApiModal() {
   setTimeout(() => document.getElementById('apiKeyInput').focus(), 100);
 }
 function closeApiModal() { document.getElementById('apiModal').classList.remove('visible'); }
-
 function saveApiKey() {
   const val = document.getElementById('apiKeyInput').value.trim();
   if (!val) { if (apiKey) { closeApiModal(); return; } document.getElementById('apiStatus').textContent = '⚠️ Wklej klucz API.'; return; }
@@ -250,18 +264,19 @@ function saveApiKey() {
 }
 document.getElementById('apiKeyInput').addEventListener('keydown', e => { if (e.key === 'Enter') saveApiKey(); });
 
+// --- PASTE & PROCESS ---
 async function pasteAndProcess() {
   if (!apiKey) { showToast('⚠️ Najpierw zapisz klucz API Claude.', 'error'); showApiModal(); return; }
   let text = '';
   try { text = await navigator.clipboard.readText(); }
   catch { showToast('⚠️ Brak dostępu do schowka. Zezwól przeglądarce na dostęp.', 'error'); return; }
   if (!text || text.trim().length < 20) { showToast('⚠️ Schowek pusty lub tekst za krótki.', 'error'); return; }
-  setLoading(true);
+  setLoading(true, 'Claude formatuje dokument…');
   try {
     const resp = await fetch('/.netlify/functions/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text, mode: currentMode, apiKey: apiKey })
+      body: JSON.stringify({ text, mode: currentMode, apiKey })
     });
     const data = await resp.json();
     if (!resp.ok || data.error) throw new Error(data.error || 'HTTP ' + resp.status);
@@ -269,7 +284,7 @@ async function pasteAndProcess() {
     setLoading(false);
     document.getElementById('btnPrint').disabled = false;
     document.getElementById('btnEmail').disabled = false;
-    showToast('✅ Dokument gotowy. Możesz edytować, drukować lub wysłać e-mail.', 'success');
+    showToast('✅ Dokument gotowy.', 'success');
   } catch(err) {
     setLoading(false);
     let msg = err.message || 'Nieznany błąd';
@@ -281,8 +296,8 @@ async function pasteAndProcess() {
 
 function renderDoc(html) {
   const titleMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/i);
-  const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '') : 'Dokument korporacyjny';
-  document.getElementById('docTitle').textContent = title;
+  currentTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '') : 'Dokument korporacyjny';
+  document.getElementById('docTitle').textContent = currentTitle;
   document.getElementById('docBody').innerHTML = html;
   document.getElementById('placeholder').style.display = 'none';
   document.getElementById('docContent').style.display = 'block';
@@ -290,13 +305,14 @@ function renderDoc(html) {
   document.getElementById('docContent').scrollIntoView({ behavior: 'smooth' });
 }
 
-function setLoading(on) {
+function setLoading(on, msg) {
   document.getElementById('loadingOverlay').classList.toggle('visible', on);
+  if (msg) document.getElementById('loadingText').innerHTML = msg;
   if (on) {
     document.getElementById('placeholder').style.display = 'none';
     if (hasDoc) document.getElementById('docContent').style.display = 'none';
     document.getElementById('statusDot').className = 'status-dot working';
-    document.getElementById('statusText').textContent = 'Claude formatuje dokument…';
+    document.getElementById('statusText').textContent = msg || 'Przetwarzanie…';
     document.getElementById('btnPaste').disabled = true;
   } else {
     document.getElementById('statusDot').className = 'status-dot ready';
@@ -305,17 +321,356 @@ function setLoading(on) {
   }
 }
 
-function emailDoc() {
-  const title = document.getElementById('docTitle').textContent;
-  const body = document.getElementById('docBody').innerText.substring(0, 1800);
-  window.location.href = 'mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+// --- EMAIL ---
+function sendEmail() {
+  const subject = currentTitle || 'Materiał korporacyjny';
+  document.getElementById('emailSubject').value = subject;
+  document.getElementById('emailTo').value = localStorage.getItem('lastEmailTo') || 'kalinowski.staszek@gmail.com';
+  document.getElementById('emailStatus').textContent = '';
+  document.getElementById('emailModal').classList.add('visible');
+  setTimeout(() => document.getElementById('emailTo').focus(), 100);
+}
+function closeEmailModal() { document.getElementById('emailModal').classList.remove('visible'); }
+
+async function generateAndSend() {
+  const to = document.getElementById('emailTo').value.trim();
+  const subject = document.getElementById('emailSubject').value.trim() || currentTitle;
+  if (!to) { document.getElementById('emailStatus').textContent = '⚠️ Wpisz adres e-mail.'; return; }
+
+  document.getElementById('emailStatus').textContent = '⏳ Generuję pliki…';
+  document.getElementById('btnSendEmail').disabled = true;
+  localStorage.setItem('lastEmailTo', to);
+
+  try {
+    // Pobierz HTML dokumentu
+    const bodyEl = document.getElementById('docBody');
+    const htmlContent = bodyEl.innerHTML;
+    const metaLine = document.getElementById('docMeta').textContent;
+
+    // Generuj PDF
+    await generatePDF(currentTitle, metaLine, htmlContent);
+
+    // Generuj DOCX
+    await generateDOCX(currentTitle, metaLine, htmlContent);
+
+    closeEmailModal();
+    document.getElementById('btnSendEmail').disabled = false;
+
+    // Otwórz klienta pocztowego
+    const mailtoLink = 'mailto:' + encodeURIComponent(to)
+      + '?subject=' + encodeURIComponent(subject)
+      + '&body=' + encodeURIComponent('W załączeniu przesyłam materiał korporacyjny: ' + subject + '\n\nPliki Word i PDF zostały pobrane na Twój komputer — proszę dołącz je ręcznie do tej wiadomości.');
+    window.location.href = mailtoLink;
+
+    showToast('✅ Pliki pobrane. Dołącz je do wiadomości e-mail.', 'success');
+  } catch(err) {
+    document.getElementById('emailStatus').textContent = '❌ Błąd: ' + err.message;
+    document.getElementById('btnSendEmail').disabled = false;
+  }
+}
+
+// --- PDF GENERATION (bez metadanych) ---
+async function generatePDF(title, meta, htmlContent) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  // Wyczyść metadane
+  doc.setProperties({ title: '', author: '', subject: '', keywords: '', creator: '' });
+
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const contentW = pageW - margin * 2;
+  let y = margin;
+
+  // Nagłówek — granatowe tło
+  doc.setFillColor(10, 22, 40);
+  doc.rect(0, 0, pageW, 35, 'F');
+  doc.setTextColor(201, 168, 76);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(meta, margin, 12);
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text(title, margin, 25, { maxWidth: contentW });
+  // Złota linia
+  doc.setDrawColor(201, 168, 76);
+  doc.setLineWidth(0.8);
+  doc.line(0, 35, pageW, 35);
+
+  y = 45;
+
+  // Parsuj HTML do tekstu
+  const parser = new DOMParser();
+  const domDoc = parser.parseFromString('<div>' + htmlContent + '</div>', 'text/html');
+  const elements = domDoc.body.firstChild.childNodes;
+
+  doc.setTextColor(26, 37, 64);
+
+  function addPage() {
+    // Numer strony na dole
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(90, 106, 138);
+      doc.text('Port Lotniczy Lublin S.A.', margin, pageH - 8);
+      doc.text('Strona ' + i + ' / ' + totalPages, pageW - margin, pageH - 8, { align: 'right' });
+    }
+    doc.addPage();
+    y = margin;
+    doc.setTextColor(26, 37, 64);
+  }
+
+  function checkY(needed) {
+    if (y + needed > pageH - 20) { addPage(); }
+  }
+
+  function processNode(node) {
+    if (node.nodeType === 3) return; // text node bezpośredni — pomijamy
+    const tag = node.tagName ? node.tagName.toLowerCase() : '';
+
+    if (tag === 'h1') {
+      checkY(14);
+      doc.setFontSize(14); doc.setFont('helvetica', 'bold'); doc.setTextColor(10, 22, 40);
+      const lines = doc.splitTextToSize(node.textContent.trim(), contentW);
+      doc.text(lines, margin, y);
+      y += lines.length * 7 + 2;
+      doc.setDrawColor(201, 168, 76); doc.setLineWidth(0.5);
+      doc.line(margin, y, pageW - margin, y);
+      y += 4;
+      doc.setTextColor(26, 37, 64);
+    } else if (tag === 'h2') {
+      checkY(12);
+      doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 49, 96);
+      const lines = doc.splitTextToSize(node.textContent.trim(), contentW);
+      doc.text(lines, margin, y);
+      y += lines.length * 6 + 3;
+      doc.setTextColor(26, 37, 64);
+    } else if (tag === 'h3') {
+      checkY(10);
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(10, 22, 40);
+      const lines = doc.splitTextToSize(node.textContent.trim(), contentW);
+      doc.text(lines, margin, y);
+      y += lines.length * 6 + 2;
+      doc.setTextColor(26, 37, 64);
+    } else if (tag === 'p') {
+      checkY(8);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      const lines = doc.splitTextToSize(node.textContent.trim(), contentW);
+      if (lines.join('').trim()) { doc.text(lines, margin, y); y += lines.length * 5.5 + 2; }
+    } else if (tag === 'blockquote') {
+      const text = node.textContent.trim();
+      if (!text) return;
+      const lines = doc.splitTextToSize(text, contentW - 8);
+      const bqH = lines.length * 5.5 + 8;
+      checkY(bqH);
+      doc.setFillColor(245, 233, 200);
+      doc.rect(margin, y - 4, contentW, bqH, 'F');
+      doc.setDrawColor(201, 168, 76); doc.setLineWidth(1);
+      doc.line(margin, y - 4, margin, y - 4 + bqH);
+      doc.setFontSize(10); doc.setFont('helvetica', 'italic'); doc.setTextColor(10, 22, 40);
+      doc.text(lines, margin + 4, y + 1);
+      y += bqH + 3;
+      doc.setTextColor(26, 37, 64);
+    } else if (tag === 'ul' || tag === 'ol') {
+      const items = node.querySelectorAll('li');
+      items.forEach((li, idx) => {
+        checkY(7);
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+        const prefix = tag === 'ol' ? (idx + 1) + '. ' : '• ';
+        const lines = doc.splitTextToSize(prefix + li.textContent.trim(), contentW - 5);
+        doc.text(lines, margin + 3, y);
+        y += lines.length * 5.5 + 1;
+      });
+      y += 2;
+    } else if (tag === 'table') {
+      const rows = node.querySelectorAll('tr');
+      if (!rows.length) return;
+      checkY(20);
+      rows.forEach((row, rIdx) => {
+        const cells = row.querySelectorAll('th, td');
+        const colW = contentW / cells.length;
+        let rowH = 7;
+        cells.forEach(cell => {
+          const lines = doc.splitTextToSize(cell.textContent.trim(), colW - 4);
+          rowH = Math.max(rowH, lines.length * 5 + 4);
+        });
+        checkY(rowH);
+        cells.forEach((cell, cIdx) => {
+          const x = margin + cIdx * colW;
+          const isHeader = cell.tagName.toLowerCase() === 'th';
+          if (isHeader) {
+            doc.setFillColor(10, 22, 40);
+            doc.rect(x, y - 5, colW, rowH, 'F');
+            doc.setTextColor(201, 168, 76);
+          } else if (rIdx % 2 === 0) {
+            doc.setFillColor(250, 248, 243);
+            doc.rect(x, y - 5, colW, rowH, 'F');
+            doc.setTextColor(26, 37, 64);
+          } else {
+            doc.setTextColor(26, 37, 64);
+          }
+          doc.setDrawColor(216, 208, 188); doc.setLineWidth(0.3);
+          doc.rect(x, y - 5, colW, rowH);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', isHeader ? 'bold' : 'normal');
+          const lines = doc.splitTextToSize(cell.textContent.trim(), colW - 4);
+          doc.text(lines, x + 2, y);
+        });
+        y += rowH;
+        doc.setTextColor(26, 37, 64);
+      });
+      y += 4;
+    } else {
+      // Inne elementy — rekurencja
+      node.childNodes.forEach(child => processNode(child));
+    }
+  }
+
+  elements.forEach(el => processNode(el));
+
+  // Numery stron na wszystkich stronach
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(90, 106, 138);
+    doc.text('Port Lotniczy Lublin S.A.', margin, pageH - 8);
+    doc.text('Strona ' + i + ' / ' + totalPages, pageW - margin, pageH - 8, { align: 'right' });
+  }
+
+  const safeName = title.replace(/[^a-zA-Z0-9_\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ ]/g, '').substring(0, 50);
+  doc.save(safeName + '.pdf');
+}
+
+// --- DOCX GENERATION (bez metadanych) ---
+async function generateDOCX(title, meta, htmlContent) {
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, AlignmentType, PageNumber, Footer, Header } = docx;
+
+  const parser = new DOMParser();
+  const domDoc = parser.parseFromString('<div>' + htmlContent + '</div>', 'text/html');
+  const elements = domDoc.body.firstChild.childNodes;
+
+  const children = [];
+
+  // Tytuł dokumentu
+  children.push(new Paragraph({
+    text: title,
+    heading: HeadingLevel.HEADING_1,
+    spacing: { after: 200 }
+  }));
+
+  function parseNode(node) {
+    const tag = node.tagName ? node.tagName.toLowerCase() : '';
+    const text = node.textContent.trim();
+    if (!text && tag !== 'table') return;
+
+    if (tag === 'h1') {
+      children.push(new Paragraph({ text, heading: HeadingLevel.HEADING_1, spacing: { before: 240, after: 120 } }));
+    } else if (tag === 'h2') {
+      children.push(new Paragraph({ text, heading: HeadingLevel.HEADING_2, spacing: { before: 200, after: 100 } }));
+    } else if (tag === 'h3') {
+      children.push(new Paragraph({ text, heading: HeadingLevel.HEADING_3, spacing: { before: 160, after: 80 } }));
+    } else if (tag === 'p') {
+      if (text) children.push(new Paragraph({ children: [new TextRun({ text, size: 22 })], spacing: { after: 120 } }));
+    } else if (tag === 'blockquote') {
+      children.push(new Paragraph({
+        children: [new TextRun({ text, italics: true, size: 22 })],
+        indent: { left: 720 },
+        border: { left: { color: 'C9A84C', size: 20, style: BorderStyle.SINGLE } },
+        spacing: { before: 120, after: 120 }
+      }));
+    } else if (tag === 'ul' || tag === 'ol') {
+      node.querySelectorAll('li').forEach((li, idx) => {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: (tag === 'ol' ? (idx + 1) + '. ' : '• ') + li.textContent.trim(), size: 22 })],
+          indent: { left: 360 },
+          spacing: { after: 60 }
+        }));
+      });
+    } else if (tag === 'table') {
+      const rows = node.querySelectorAll('tr');
+      if (!rows.length) return;
+      const tableRows = [];
+      rows.forEach((row, rIdx) => {
+        const cells = row.querySelectorAll('th, td');
+        const tableCells = [];
+        cells.forEach(cell => {
+          const isHeader = cell.tagName.toLowerCase() === 'th';
+          tableCells.push(new TableCell({
+            children: [new Paragraph({
+              children: [new TextRun({ text: cell.textContent.trim(), bold: isHeader, color: isHeader ? 'C9A84C' : '1A2540', size: 20 })],
+              alignment: AlignmentType.LEFT
+            })],
+            shading: isHeader ? { fill: '0A1628', type: ShadingType.CLEAR, color: '0A1628' }
+              : rIdx % 2 === 0 ? { fill: 'FAF8F3', type: ShadingType.CLEAR } : {},
+            margins: { top: 80, bottom: 80, left: 120, right: 120 }
+          }));
+        });
+        tableRows.push(new TableRow({ children: tableCells }));
+      });
+      children.push(new Table({
+        rows: tableRows,
+        width: { size: 100, type: WidthType.PERCENTAGE }
+      }));
+      children.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+    } else {
+      node.childNodes.forEach(child => parseNode(child));
+    }
+  }
+
+  elements.forEach(el => parseNode(el));
+
+  const doc2 = new Document({
+    // Czyste metadane — brak autora, narzędzia, daty
+    creator: '',
+    description: '',
+    title: '',
+    subject: '',
+    keywords: '',
+    lastModifiedBy: '',
+    revision: 1,
+    sections: [{
+      properties: {
+        page: {
+          margin: { top: 1134, right: 1134, bottom: 1134, left: 1134 }
+        }
+      },
+      footers: {
+        default: new Footer({
+          children: [new Paragraph({
+            children: [
+              new TextRun({ text: 'Port Lotniczy Lublin S.A.    Strona ', size: 16, color: '5A6A8A' }),
+              new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '5A6A8A' }),
+              new TextRun({ text: ' / ', size: 16, color: '5A6A8A' }),
+              new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '5A6A8A' }),
+            ],
+            alignment: AlignmentType.CENTER
+          })]
+        })
+      },
+      children
+    }]
+  });
+
+  const blob = await Packer.toBlob(doc2);
+  const safeName = title.replace(/[^a-zA-Z0-9_\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ ]/g, '').substring(0, 50);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = safeName + '.docx';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 let toastTimer;
 function showToast(msg, type='') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast visible' + (type ? ' '+type : '');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = 'toast'; }, 5000);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = 'toast'; }, 6000);
 }
 </script>
 </body>
