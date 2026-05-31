@@ -90,8 +90,47 @@
   .toast.visible{transform:translateY(0);opacity:1}
   .toast.error{border-left-color:var(--danger)}
   .toast.success{border-left-color:#27ae60}
-  @media print{.header,.status-bar,.modal-overlay,.toast{display:none!important}body{background:white}.doc-content{box-shadow:none;border:none}.doc-area{padding:0;max-width:100%}}
-  @media(max-width:600px){.header{padding:0 16px}.logo-text{font-size:13px}.btn span:last-child{display:none}.doc-area{padding:16px}.doc-body{padding:18px}.doc-header-band{padding:16px 18px}}
+
+  @media print {
+    .header,.status-bar,.modal-overlay,.toast{display:none!important}
+    body{background:white;font-size:12pt}
+    .main{background:white}
+    .doc-area{padding:0;max-width:100%}
+    .doc-content{box-shadow:none;border:none}
+    .doc-header-band{background:#0a1628 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:16px 24px}
+    .doc-header-band h1{color:white !important}
+    .doc-meta{color:#c9a84c !important}
+    .doc-body{padding:16px 24px}
+    .doc-body th{background:#0a1628 !important;color:#c9a84c !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .doc-body blockquote{background:#f5e9c8 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .doc-body table{page-break-inside:avoid}
+    .doc-body h2{page-break-after:avoid}
+
+    @page {
+      size: A4;
+      margin: 2cm 2cm 2.5cm 2cm;
+      @bottom-center {
+        content: "Strona " counter(page) " / " counter(pages);
+        font-family: 'DM Sans', sans-serif;
+        font-size: 9pt;
+        color: #5a6a8a;
+      }
+      @bottom-left {
+        content: "Port Lotniczy Lublin S.A. — Materiał Poufny";
+        font-size: 8pt;
+        color: #5a6a8a;
+      }
+    }
+  }
+
+  @media(max-width:600px){
+    .header{padding:0 16px}
+    .logo-text{font-size:13px}
+    .btn span:last-child{display:none}
+    .doc-area{padding:16px}
+    .doc-body{padding:18px}
+    .doc-header-band{padding:16px 18px}
+  }
 </style>
 </head>
 <body>
