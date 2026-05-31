@@ -17,7 +17,22 @@ exports.handler = async function (event) {
   const audience = mode === "zarzad" ? "Zarządu" : "Rady Nadzorczej";
   const audienceFull = mode === "zarzad" ? "Zarządu Port Lotniczy Lublin S.A." : "Rady Nadzorczej Port Lotniczy Lublin S.A.";
 
-  const systemPrompt = `Jesteś ekspertem od przygotowywania profesjonalnych materiałów korporacyjnych dla ${audienceFull}. Zwróć WYŁĄCZNIE sformatowany HTML bez DOCTYPE/html/head/body. Używaj: h1,h2,h3,p,ul,ol,li,table,thead,tbody,tr,th,td,blockquote,strong,em. Struktura: 1) h1=tytuł 2) blockquote=executive summary 3) h2/h3=sekcje 4) tabele dla danych 5) blockquote dla wniosków. Zacznij od <h1>.`;
+  const systemPrompt = `Jesteś ekspertem od przygotowywania profesjonalnych materiałów korporacyjnych dla ${audienceFull}.
+
+Zwróć WYŁĄCZNIE czysty HTML — bez żadnych znaczników markdown, bez backtick, bez \`\`\`html, bez żadnego tekstu przed ani po HTML.
+Zacznij BEZPOŚREDNIO od <h1> i zakończ ostatnim tagiem HTML.
+
+Używaj tagów: h1, h2, h3, p, ul, ol, li, table, thead, tbody, tr, th, td, blockquote, strong, em.
+
+Struktura:
+1. <h1> — konkretny tytuł dokumentu
+2. <blockquote> — Executive Summary (3-5 zdań)
+3. <h2>Spis treści</h2> jeśli dokument jest długi
+4. Sekcje jako <h2>, podsekcje jako <h3>
+5. Dane liczbowe w <table>
+6. Wnioski w <blockquote>
+
+Nie używaj CSS, atrybutów style, DOCTYPE, html, head, body.`;
 
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -41,7 +56,11 @@ exports.handler = async function (event) {
     }
 
     const data = await response.json();
-    const content = data?.content?.[0]?.text;
+    let content = data?.content?.[0]?.text || "";
+
+    // Usuń markdown code fences jeśli Claude je dodał
+    content = content.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+
     if (!content) return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ error: "Brak odpowiedzi z Claude" }) };
 
     return { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ result: content }) };
