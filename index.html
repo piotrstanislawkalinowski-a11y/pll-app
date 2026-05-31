@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1628">
+<title>Port Lotniczy Lublin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:#0a1628;--navy-mid:#132040;--navy-light:#1e3160;
+    --gold:#c9a84c;--gold-light:#e8c97a;--gold-pale:#f5e9c8;
+    --cream:#faf8f3;--text:#1a2540;--text-muted:#5a6a8a;
+    --border:#d8d0bc;--white:#ffffff;--danger:#c0392b;
+    --radius:4px;--shadow:0 2px 20px rgba(10,22,40,.12);--shadow-lg:0 8px 40px rgba(10,22,40,.18);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+  .header{background:var(--navy);border-bottom:1px solid rgba(201,168,76,.25);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
+  .logo-text{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--white);line-height:1.2}
+  .logo-sub{font-size:10px;color:var(--gold);letter-spacing:.12em;text-transform:uppercase}
+  .header-actions{display:flex;align-items:center;gap:8px}
+
+  .mode-tabs{display:flex;gap:4px;background:rgba(255,255,255,.06);border-radius:var(--radius);padding:3px}
+  .mode-tab{padding:5px 14px;border-radius:2px;font-size:12px;font-weight:500;cursor:pointer;color:rgba(255,255,255,.5);transition:all .18s;border:none;background:transparent;font-family:'DM Sans',sans-serif}
+  .mode-tab.active{background:var(--gold);color:var(--navy);font-weight:600}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .18s ease;white-space:nowrap}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--gold);border:1px solid rgba(201,168,76,.4)}
+  .btn-ghost:hover:not(:disabled){background:rgba(201,168,76,.1);border-color:var(--gold)}
+  .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy);font-weight:600}
+  .btn-gold:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 16px rgba(201,168,76,.35)}
+  .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
+  .btn-outline:hover:not(:disabled){background:var(--gold-pale);border-color:var(--gold)}
+
+  .status-bar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .status-indicator{display:flex;align-items:center;gap:8px;font-size:13px}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
+  .status-dot.ready{background:#27ae60}
+  .status-dot.working{background:var(--gold);animation:pulse 1s infinite}
+  .status-dot.error{background:var(--danger)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .status-text{color:var(--text-muted)}
+  .toolbar{display:flex;gap:8px;align-items:center}
+
+  .main{flex:1;background:var(--cream)}
+  .doc-area{padding:32px 24px;max-width:860px;margin:0 auto;width:100%}
+
+  .doc-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;text-align:center;gap:16px;color:var(--text-muted)}
+  .doc-placeholder-icon{width:72px;height:72px;background:linear-gradient(135deg,var(--navy),var(--navy-light));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:8px}
+  .doc-placeholder h2{font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);font-weight:600}
+  .doc-placeholder p{font-size:14px;max-width:380px;line-height:1.6}
+  .steps-row{display:flex;gap:24px;margin-top:16px;flex-wrap:wrap;justify-content:center}
+  .step{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;max-width:120px}
+  .step-num{width:32px;height:32px;background:var(--gold-pale);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--navy)}
+  .step span{font-size:12px;color:var(--text-muted);line-height:1.4}
+
+  .loading-overlay{display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:80px 24px;text-align:center}
+  .loading-overlay.visible{display:flex}
+  .spinner{width:48px;height:48px;border:3px solid var(--gold-pale);border-top-color:var(--gold);border-radius:50%;animation:spin .9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-size:14px;color:var(--text-muted);max-width:300px;line-height:1.6}
+
+  .doc-content{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .doc-header-band{background:var(--navy);padding:24px 32px;border-bottom:3px solid var(--gold)}
+  .doc-header-band h1{font-family:'Playfair Display',serif;font-size:20px;color:var(--white);font-weight:700;margin-bottom:4px}
+  .doc-meta{font-size:11px;color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
+  .doc-body{padding:28px 32px;min-height:200px;outline:none;font-size:14px;line-height:1.75;color:var(--text)}
+  .doc-body h1,.doc-body h2,.doc-body h3{font-family:'Playfair Display',serif;color:var(--navy);margin-top:24px;margin-bottom:10px}
+  .doc-body h1{font-size:20px;border-bottom:2px solid var(--gold);padding-bottom:6px}
+  .doc-body h2{font-size:17px;color:var(--navy-light)}
+  .doc-body h3{font-size:15px}
+  .doc-body p{margin-bottom:10px}
+  .doc-body ul,.doc-body ol{margin:10px 0 10px 20px}
+  .doc-body li{margin-bottom:4px}
+  .doc-body table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+  .doc-body th{background:var(--navy);color:var(--gold);padding:8px 12px;text-align:left;font-weight:600}
+  .doc-body td{border:1px solid var(--border);padding:7px 12px}
+  .doc-body tr:nth-child(even) td{background:var(--cream)}
+  .doc-body blockquote{border-left:3px solid var(--gold);background:var(--gold-pale);padding:10px 16px;margin:12px 0;font-style:italic;color:var(--navy);border-radius:0 var(--radius) var(--radius) 0}
+
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,22,40,.7);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+  .modal-overlay.visible{display:flex}
+  .modal{background:var(--white);border-radius:8px;box-shadow:var(--shadow-lg);padding:32px;max-width:440px;width:100%;animation:fadeUp .2s ease}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .modal h2{font-family:'Playfair Display',serif;font-size:20px;color:var(--navy);margin-bottom:8px}
+  .modal p{font-size:13px;color:var(--text-muted);margin-bottom:20px;line-height:1.6}
+  .form-group{margin-bottom:16px}
+  .form-label{display:block;font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+  .form-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:monospace;font-size:13px;color:var(--text);background:var(--cream);transition:border-color .15s}
+  .form-input:focus{outline:none;border-color:var(--gold);background:var(--white)}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:var(--white);padding:12px 18px;border-radius:var(--radius);font-size:13px;border-left:3px solid var(--gold);box-shadow:var(--shadow-lg);z-index:300;transform:translateY(80px);opacity:0;transition:all .25s ease;max-width:340px;line-height:1.5}
+  .toast.visible{transform:translateY(0);opacity:1}
+  .toast.error{border-left-color:var(--danger)}
+  .toast.success{border-left-color:#27ae60}
+
+  @media print{.header,.status-bar,.modal-overlay,.toast{display:none!important}body{background:white}.doc-content{box-shadow:none;border:none}.doc-area{padding:0;max-width:100%}}
+  @media(max-width:600px){.header{padding:0 16px}.logo-text{font-size:13px}.btn span:last-child{display:none}.doc-area{padding:16px}.doc-body{padding:18px}.doc-header-band{padding:16px 18px}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">✈</div>
+    <div>
+      <div class="logo-text">Port Lotniczy Lublin</div>
+      <div class="logo-sub">Panel Dokumentów Korporacyjnych</div>
+    </div>
+  </div>
+  <div class="header-actions">
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="rada" onclick="setMode('rada')">Rada Nadzorcza</button>
+      <button class="mode-tab" data-mode="zarzad" onclick="setMode('zarzad')">Zarząd</button>
+    </div>
+    <button class="btn btn-ghost" onclick="showApiModal()">🔑 <span>API Claude</span></button>
+  </div>
+</header>
+
+<div class="status-bar">
+  <div class="status-indicator">
+    <div class="status-dot" id="statusDot"></div>
+    <span class="status-text" id="statusText">Kliknij „API Claude" i wklej klucz, aby zacząć.</span>
+  </div>
+  <div class="toolbar">
+    <button class="btn btn-gold" id="btnPaste" onclick="pasteAndProcess()">📋 <span>Wklej i formatuj</span></button>
+    <button class="btn btn-outline" id="btnPrint" onclick="window.print()" disabled>🖨️ <span>Drukuj</span></button>
+    <button class="btn btn-outline" id="btnEmail" onclick="emailDoc()" disabled>✉️ <span>E-mail</span></button>
+  </div>
+</div>
+
+<main class="main">
+  <div class="doc-area">
+    <div class="doc-placeholder" id="placeholder">
+      <div class="doc-placeholder-icon">📄</div>
+      <h2>Gotowy na Twój materiał</h2>
+      <p>Skopiuj odpowiedź z ChatGPT, wybierz odbiorcę i kliknij <strong>Wklej i formatuj</strong>.</p>
+      <div class="steps-row">
+        <div class="step"><div class="step-num">1</div><span>Zapisz klucz API Claude</span></div>
+        <div class="step"><div class="step-num">2</div><span>Kopiuj tekst z ChatGPT</span></div>
+        <div class="step"><div class="step-num">3</div><span>Kliknij „Wklej i formatuj"</span></div>
+        <div class="step"><div class="step-num">4</div><span>Drukuj lub wyślij e-mail</span></div>
+      </div>
+    </div>
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div class="loading-text">Claude formatuje dokument…<br>Zwykle trwa to 15–30 sekund.</div>
+    </div>
+    <div class="doc-content" id="docContent" style="display:none">
+      <div class="doc-header-band">
+        <div class="doc-meta" id="docMeta">MATERIAŁ DLA RADY NADZORCZEJ · PORT LOTNICZY LUBLIN S.A.</div>
+        <h1 id="docTitle">Dokument roboczy</h1>
+      </div>
+      <div class="doc-body" id="docBody" contenteditable="true"></div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="apiModal" onclick="if(event.target===this)closeApiModal()">
+  <div class="modal">
+    <h2>Klucz API Claude</h2>
+    <p>Klucz zapisywany lokalnie w przeglądarce. Używany wyłącznie do wywołań Anthropic API.</p>
+    <div class="form-group">
+      <label class="form-label" for="apiKeyInput">Klucz API (sk-ant-…)</label>
+      <input class="form-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off">
+    </div>
+    <div id="apiStatus" style="font-size:13px;color:var(--text-muted);min-height:18px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeApiModal()">Anuluj</button>
+      <button class="btn btn-gold" onclick="saveApiKey()">Zapisz API</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let apiKey = localStorage.getItem('claudeApiKey') || '';
+let currentMode = 'rada';
+let hasDoc = false;
+
+window.addEventListener('DOMContentLoaded', updateStatus);
+
+function updateStatus() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  if (apiKey) {
+    dot.className = 'status-dot ready';
+    txt.textContent = 'API Claude gotowe. Skopiuj tekst z ChatGPT i kliknij „Wklej i formatuj".';
+  } else {
+    dot.className = 'status-dot';
+    txt.textContent = 'Kliknij „API Claude" i wklej klucz, aby zacząć.';
+  }
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  document.getElementById('docMeta').textContent = mode === 'rada'
+    ? 'MATERIAŁ DLA RADY NADZORCZEJ · PORT LOTNICZY LUBLIN S.A.'
+    : 'MATERIAŁ DLA ZARZĄDU · PORT LOTNICZY LUBLIN S.A.';
+}
+
+function showApiModal() {
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('apiStatus').textContent = apiKey ? '✅ Klucz już zapisany. Wklej nowy, aby zmienić.' : '';
+  document.getElementById('apiModal').classList.add('visible');
+  setTimeout(() => document.getElementById('apiKeyInput').focus(), 100);
+}
+function closeApiModal() { document.getElementById('apiModal').classList.remove('visible'); }
+
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val) { if (apiKey) { closeApiModal(); return; } document.getElementById('apiStatus').textContent = '⚠️ Wklej klucz API.'; return; }
+  if (!val.startsWith('sk-')) { document.getElementById('apiStatus').textContent = '⚠️ Klucz powinien zaczynać się od sk-ant-…'; return; }
+  apiKey = val;
+  localStorage.setItem('claudeApiKey', val);
+  closeApiModal();
+  updateStatus();
+  showToast('✅ API Claude zapisane. Gotowe, możesz pracować.', 'success');
+}
+document.getElementById('apiKeyInput').addEventListener('keydown', e => { if (e.key === 'Enter') saveApiKey(); });
+
+async function pasteAndProcess() {
+  if (!apiKey) { showToast('⚠️ Najpierw zapisz klucz API Claude.', 'error'); showApiModal(); return; }
+  let text = '';
+  try { text = await navigator.clipboard.readText(); }
+  catch { showToast('⚠️ Brak dostępu do schowka. Zezwól przeglądarce na dostęp.', 'error'); return; }
+  if (!text || text.trim().length < 20) { showToast('⚠️ Schowek pusty lub tekst za krótki.', 'error'); return; }
+  setLoading(true);
+  try {
+    const html = await callClaude(text);
+    renderDoc(html);
+    setLoading(false);
+    document.getElementById('btnPrint').disabled = false;
+    document.getElementById('btnEmail').disabled = false;
+    showToast('✅ Dokument gotowy. Możesz edytować, drukować lub wysłać e-mail.', 'success');
+  } catch(err) {
+    setLoading(false);
+    showToast('❌ Błąd: ' + (err.message || 'Nieznany błąd'), 'error');
+  }
+}
+
+async function callClaude(text) {
+  const audience = currentMode === 'zarzad' ? 'Zarządu' : 'Rady Nadzorczej';
+  const audienceFull = currentMode === 'zarzad' ? 'Zarządu Port Lotniczy Lublin S.A.' : 'Rady Nadzorczej Port Lotniczy Lublin S.A.';
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-calls': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5',
+      max_tokens: 4096,
+      system: `Jesteś ekspertem od przygotowywania profesjonalnych materiałów korporacyjnych dla ${audienceFull}. Zwróć WYŁĄCZNIE sformatowany HTML bez DOCTYPE/html/head/body. Używaj: h1,h2,h3,p,ul,ol,li,table,thead,tbody,tr,th,td,blockquote,strong,em. Struktura: 1) h1=tytuł 2) blockquote=executive summary 3) h2/h3=sekcje 4) tabele dla danych liczbowych 5) blockquote dla wniosków. Zacznij od <h1>.`,
+      messages: [{ role: 'user', content: `Sformatuj jako materiał dla ${audience}:\n\n${text}` }]
+    })
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    const msg = err?.error?.message || resp.statusText;
+    if (resp.status === 401) throw new Error('Nieprawidłowy klucz API.');
+    if (resp.status === 429) throw new Error('Limit zapytań. Poczekaj chwilę.');
+    throw new Error(msg);
+  }
+
+  const data = await resp.json();
+  const content = data?.content?.[0]?.text;
+  if (!content) throw new Error('Brak odpowiedzi z Claude.');
+  return content;
+}
+
+function renderDoc(html) {
+  const titleMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/i);
+  const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '') : 'Dokument korporacyjny';
+  document.getElementById('docTitle').textContent = title;
+  document.getElementById('docBody').innerHTML = html;
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('docContent').style.display = 'block';
+  hasDoc = true;
+  document.getElementById('docContent').scrollIntoView({ behavior: 'smooth' });
+}
+
+function setLoading(on) {
+  document.getElementById('loadingOverlay').classList.toggle('visible', on);
+  if (on) {
+    document.getElementById('placeholder').style.display = 'none';
+    if (hasDoc) document.getElementById('docContent').style.display = 'none';
+    document.getElementById('statusDot').className = 'status-dot working';
+    document.getElementById('statusText').textContent = 'Claude formatuje dokument…';
+    document.getElementById('btnPaste').disabled = true;
+  } else {
+    document.getElementById('statusDot').className = 'status-dot ready';
+    document.getElementById('statusText').textContent = 'Dokument gotowy.';
+    document.getElementById('btnPaste').disabled = false;
+  }
+}
+
+function emailDoc() {
+  const title = document.getElementById('docTitle').textContent;
+  const body = document.getElementById('docBody').innerText.substring(0, 1800);
+  window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+}
+
+let toastTimer;
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast visible' + (type ? ' '+type : '');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.className = 'toast'; }, 5000);
+}
+</script>
+</body>
+</html>
