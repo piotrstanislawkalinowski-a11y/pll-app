@@ -17,18 +17,15 @@
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
-
   .header{background:var(--navy);border-bottom:1px solid rgba(201,168,76,.25);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100}
   .logo{display:flex;align-items:center;gap:12px}
   .logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--gold),var(--gold-light));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px}
   .logo-text{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;color:var(--white);line-height:1.2}
   .logo-sub{font-size:10px;color:var(--gold);letter-spacing:.12em;text-transform:uppercase}
   .header-actions{display:flex;align-items:center;gap:8px}
-
   .mode-tabs{display:flex;gap:4px;background:rgba(255,255,255,.06);border-radius:var(--radius);padding:3px}
   .mode-tab{padding:5px 14px;border-radius:2px;font-size:12px;font-weight:500;cursor:pointer;color:rgba(255,255,255,.5);transition:all .18s;border:none;background:transparent;font-family:'DM Sans',sans-serif}
   .mode-tab.active{background:var(--gold);color:var(--navy);font-weight:600}
-
   .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .18s ease;white-space:nowrap}
   .btn:disabled{opacity:.4;cursor:not-allowed}
   .btn-ghost{background:transparent;color:var(--gold);border:1px solid rgba(201,168,76,.4)}
@@ -37,7 +34,6 @@
   .btn-gold:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 16px rgba(201,168,76,.35)}
   .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
   .btn-outline:hover:not(:disabled){background:var(--gold-pale);border-color:var(--gold)}
-
   .status-bar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .status-indicator{display:flex;align-items:center;gap:8px;font-size:13px}
   .status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
@@ -47,10 +43,8 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
   .status-text{color:var(--text-muted)}
   .toolbar{display:flex;gap:8px;align-items:center}
-
   .main{flex:1;background:var(--cream)}
   .doc-area{padding:32px 24px;max-width:860px;margin:0 auto;width:100%}
-
   .doc-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;text-align:center;gap:16px;color:var(--text-muted)}
   .doc-placeholder-icon{width:72px;height:72px;background:linear-gradient(135deg,var(--navy),var(--navy-light));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:8px}
   .doc-placeholder h2{font-family:'Playfair Display',serif;font-size:22px;color:var(--navy);font-weight:600}
@@ -59,13 +53,11 @@
   .step{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;max-width:120px}
   .step-num{width:32px;height:32px;background:var(--gold-pale);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--navy)}
   .step span{font-size:12px;color:var(--text-muted);line-height:1.4}
-
   .loading-overlay{display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:80px 24px;text-align:center}
   .loading-overlay.visible{display:flex}
   .spinner{width:48px;height:48px;border:3px solid var(--gold-pale);border-top-color:var(--gold);border-radius:50%;animation:spin .9s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .loading-text{font-size:14px;color:var(--text-muted);max-width:300px;line-height:1.6}
-
   .doc-content{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
   .doc-header-band{background:var(--navy);padding:24px 32px;border-bottom:3px solid var(--gold)}
   .doc-header-band h1{font-family:'Playfair Display',serif;font-size:20px;color:var(--white);font-weight:700;margin-bottom:4px}
@@ -83,7 +75,6 @@
   .doc-body td{border:1px solid var(--border);padding:7px 12px}
   .doc-body tr:nth-child(even) td{background:var(--cream)}
   .doc-body blockquote{border-left:3px solid var(--gold);background:var(--gold-pale);padding:10px 16px;margin:12px 0;font-style:italic;color:var(--navy);border-radius:0 var(--radius) var(--radius) 0}
-
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,22,40,.7);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
   .modal-overlay.visible{display:flex}
   .modal{background:var(--white);border-radius:8px;box-shadow:var(--shadow-lg);padding:32px;max-width:440px;width:100%;animation:fadeUp .2s ease}
@@ -95,18 +86,15 @@
   .form-input{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:monospace;font-size:13px;color:var(--text);background:var(--cream);transition:border-color .15s}
   .form-input:focus{outline:none;border-color:var(--gold);background:var(--white)}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
-
   .toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:var(--white);padding:12px 18px;border-radius:var(--radius);font-size:13px;border-left:3px solid var(--gold);box-shadow:var(--shadow-lg);z-index:300;transform:translateY(80px);opacity:0;transition:all .25s ease;max-width:340px;line-height:1.5}
   .toast.visible{transform:translateY(0);opacity:1}
   .toast.error{border-left-color:var(--danger)}
   .toast.success{border-left-color:#27ae60}
-
   @media print{.header,.status-bar,.modal-overlay,.toast{display:none!important}body{background:white}.doc-content{box-shadow:none;border:none}.doc-area{padding:0;max-width:100%}}
   @media(max-width:600px){.header{padding:0 16px}.logo-text{font-size:13px}.btn span:last-child{display:none}.doc-area{padding:16px}.doc-body{padding:18px}.doc-header-band{padding:16px 18px}}
 </style>
 </head>
 <body>
-
 <header class="header">
   <div class="logo">
     <div class="logo-icon">✈</div>
@@ -123,7 +111,6 @@
     <button class="btn btn-ghost" onclick="showApiModal()">🔑 <span>API Claude</span></button>
   </div>
 </header>
-
 <div class="status-bar">
   <div class="status-indicator">
     <div class="status-dot" id="statusDot"></div>
@@ -135,7 +122,6 @@
     <button class="btn btn-outline" id="btnEmail" onclick="emailDoc()" disabled>✉️ <span>E-mail</span></button>
   </div>
 </div>
-
 <main class="main">
   <div class="doc-area">
     <div class="doc-placeholder" id="placeholder">
@@ -162,11 +148,10 @@
     </div>
   </div>
 </main>
-
 <div class="modal-overlay" id="apiModal" onclick="if(event.target===this)closeApiModal()">
   <div class="modal">
     <h2>Klucz API Claude</h2>
-    <p>Klucz zapisywany lokalnie w przeglądarce. Używany wyłącznie do wywołań Anthropic API.</p>
+    <p>Klucz zapisywany lokalnie w przeglądarce. Używany wyłącznie do wywołań przez serwer Netlify.</p>
     <div class="form-group">
       <label class="form-label" for="apiKeyInput">Klucz API (sk-ant-…)</label>
       <input class="form-input" type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off">
@@ -178,9 +163,7 @@
     </div>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
 <script>
 let apiKey = localStorage.getItem('claudeApiKey') || '';
 let currentMode = 'rada';
@@ -236,50 +219,25 @@ async function pasteAndProcess() {
   if (!text || text.trim().length < 20) { showToast('⚠️ Schowek pusty lub tekst za krótki.', 'error'); return; }
   setLoading(true);
   try {
-    const html = await callClaude(text);
-    renderDoc(html);
+    const resp = await fetch('/.netlify/functions/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, mode: currentMode, apiKey: apiKey })
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw new Error(data.error || 'HTTP ' + resp.status);
+    renderDoc(data.result);
     setLoading(false);
     document.getElementById('btnPrint').disabled = false;
     document.getElementById('btnEmail').disabled = false;
     showToast('✅ Dokument gotowy. Możesz edytować, drukować lub wysłać e-mail.', 'success');
   } catch(err) {
     setLoading(false);
-    showToast('❌ Błąd: ' + (err.message || 'Nieznany błąd'), 'error');
+    let msg = err.message || 'Nieznany błąd';
+    if (msg.includes('401')) msg = 'Nieprawidłowy klucz API.';
+    if (msg.includes('429')) msg = 'Limit zapytań. Poczekaj chwilę.';
+    showToast('❌ Błąd: ' + msg, 'error');
   }
-}
-
-async function callClaude(text) {
-  const audience = currentMode === 'zarzad' ? 'Zarządu' : 'Rady Nadzorczej';
-  const audienceFull = currentMode === 'zarzad' ? 'Zarządu Port Lotniczy Lublin S.A.' : 'Rady Nadzorczej Port Lotniczy Lublin S.A.';
-
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-calls': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5',
-      max_tokens: 4096,
-      system: `Jesteś ekspertem od przygotowywania profesjonalnych materiałów korporacyjnych dla ${audienceFull}. Zwróć WYŁĄCZNIE sformatowany HTML bez DOCTYPE/html/head/body. Używaj: h1,h2,h3,p,ul,ol,li,table,thead,tbody,tr,th,td,blockquote,strong,em. Struktura: 1) h1=tytuł 2) blockquote=executive summary 3) h2/h3=sekcje 4) tabele dla danych liczbowych 5) blockquote dla wniosków. Zacznij od <h1>.`,
-      messages: [{ role: 'user', content: `Sformatuj jako materiał dla ${audience}:\n\n${text}` }]
-    })
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    const msg = err?.error?.message || resp.statusText;
-    if (resp.status === 401) throw new Error('Nieprawidłowy klucz API.');
-    if (resp.status === 429) throw new Error('Limit zapytań. Poczekaj chwilę.');
-    throw new Error(msg);
-  }
-
-  const data = await resp.json();
-  const content = data?.content?.[0]?.text;
-  if (!content) throw new Error('Brak odpowiedzi z Claude.');
-  return content;
 }
 
 function renderDoc(html) {
@@ -311,7 +269,7 @@ function setLoading(on) {
 function emailDoc() {
   const title = document.getElementById('docTitle').textContent;
   const body = document.getElementById('docBody').innerText.substring(0, 1800);
-  window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+  window.location.href = 'mailto:?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
 }
 
 let toastTimer;
