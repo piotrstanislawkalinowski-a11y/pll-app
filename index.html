@@ -590,7 +590,7 @@ async function generateAndSend() {
   const to = document.getElementById('emailTo').value.trim();
   const subject = document.getElementById('emailSubject').value.trim() || currentTitle;
   if (!to) { document.getElementById('emailStatus').textContent = '⚠️ Wpisz adres e-mail.'; return; }
-  document.getElementById('emailStatus').textContent = '⏳ Generuję PDF…';
+  document.getElementById('emailStatus').textContent = '⏳ Generuję dokument Word…';
   document.getElementById('btnSendEmail').disabled = true;
   localStorage.setItem('lastEmailTo', to);
   try {
@@ -598,15 +598,10 @@ async function generateAndSend() {
     const metaLine = document.getElementById('docMeta').textContent;
     const safeName = currentTitle.replace(/[^a-zA-Z0-9_\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ ]/g,'').substring(0,50);
 
-    // Generuj PDF jako base64
-    document.getElementById('emailStatus').textContent = '⏳ Generuję PDF…';
-    const pdfBase64 = await generatePDFBase64(currentTitle, metaLine, htmlContent);
-
-    // Generuj DOCX jako base64
-    document.getElementById('emailStatus').textContent = '⏳ Generuję Word…';
+    // Generuj tylko DOCX
     const docxBase64 = await generateDOCXBase64(currentTitle, metaLine, htmlContent);
 
-    // Wyślij przez SendGrid
+    // Wyślij przez Resend
     document.getElementById('emailStatus').textContent = '⏳ Wysyłam e-mail…';
     const resp = await fetch('/.netlify/functions/claude', {
       method: 'POST',
@@ -614,7 +609,6 @@ async function generateAndSend() {
       body: JSON.stringify({
         action: 'send_email',
         to, subject,
-        pdfBase64, pdfName: safeName + '.pdf',
         docxBase64, docxName: safeName + '.docx'
       })
     });
@@ -946,58 +940,240 @@ async function generatePDFBase64(title, meta, htmlContent) {
   return doc.output('datauristring').split(',')[1];
 }
 
-// ── DOCX BASE64 (dla e-mail) ──
+// ── DOCX BASE64 - profesjonalny dokument korporacyjny ──
 async function generateDOCXBase64(title, meta, htmlContent) {
-  const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, AlignmentType, PageNumber, Footer } = docx;
+  const {
+    Document, Packer, Paragraph, TextRun,
+    Table, TableRow, TableCell,
+    WidthType, BorderStyle, ShadingType, AlignmentType,
+    PageNumber, Footer, Header,
+    convertInchesToTwip, LineRuleType
+  } = docx;
+
+  const NAVY = '0A1628', GOLD = 'C9A84C', NAVY_LIGHT = '1E3160';
+  const GOLD_PALE = 'F5E9C8', TEXT = '1A2540', MUTED = '5A6A8A', CREAM = 'FAF8F3';
+  const twip = convertInchesToTwip;
+  const AUTO = LineRuleType ? LineRuleType.AUTO : 'auto';
+
+  // Sprawdza czy tekst to liczba/wartość liczbowa
+  function isNumeric(str) {
+    return /^[\d\s\-–.,+%złzłzl\/():]+$/.test(str.trim()) && /\d/.test(str);
+  }
+
   const parser = new DOMParser();
   const domDoc = parser.parseFromString('<div>' + htmlContent + '</div>', 'text/html');
   const children = [];
-  children.push(new Paragraph({ text: title, heading: HeadingLevel.HEADING_1, spacing: { after: 200 } }));
+
+  // Tytuł dokumentu — jeden raz na początku
+  children.push(new Paragraph({
+    children: [new TextRun({ text: title, bold: true, size: 32, color: NAVY, font: 'Calibri' })],
+    spacing: { before: 0, after: 200, line: 276, lineRule: LineRuleType.AUTO },
+    border: { bottom: { color: GOLD, size: 16, style: BorderStyle.SINGLE, space: 6 } },
+  }));
+  children.push(new Paragraph({ text: '', spacing: { after: 100 } }));
+  function makeH1(text) {
+    return new Paragraph({
+      children: [new TextRun({ text, bold: true, size: 28, color: NAVY, font: 'Calibri' })],
+      spacing: { before: 280, after: 160, line: 276, lineRule: AUTO },
+      border: { bottom: { color: GOLD, size: 12, style: BorderStyle.SINGLE, space: 4 } },
+    });
+  }
+
+  function makeH2(text) {
+    return new Paragraph({
+      children: [new TextRun({ text, bold: true, size: 24, color: NAVY_LIGHT, font: 'Calibri' })],
+      spacing: { before: 240, after: 100, line: 276, lineRule: AUTO },
+    });
+  }
+
+  function makeH3(text) {
+    return new Paragraph({
+      children: [new TextRun({ text, bold: true, size: 22, color: NAVY, font: 'Calibri' })],
+      spacing: { before: 180, after: 80, line: 276, lineRule: AUTO },
+    });
+  }
+
+  function makeP(text) {
+    return new Paragraph({
+      children: [new TextRun({ text, size: 22, color: TEXT, font: 'Calibri' })],
+      alignment: AlignmentType.JUSTIFIED,
+      spacing: { before: 60, after: 100, line: 276, lineRule: AUTO },
+    });
+  }
+
+  function makeBlockquote(text) {
+    return new Paragraph({
+      children: [new TextRun({ text, italics: true, size: 21, color: NAVY, font: 'Calibri' })],
+      alignment: AlignmentType.JUSTIFIED,
+      indent: { left: twip(0.3), right: twip(0.3) },
+      spacing: { before: 140, after: 140, line: 276, lineRule: AUTO },
+      shading: { fill: GOLD_PALE, type: ShadingType.CLEAR },
+      border: { left: { color: GOLD, size: 24, style: BorderStyle.SINGLE, space: 8 } },
+    });
+  }
+
+  function makeLi(text, ordered, idx) {
+    return new Paragraph({
+      children: [new TextRun({ text: (ordered ? (idx+1)+'. ' : '• ') + text, size: 22, color: TEXT, font: 'Calibri' })],
+      indent: { left: twip(0.35) },
+      spacing: { before: 40, after: 60, line: 276, lineRule: AUTO },
+    });
+  }
+
+  function makeTable(node) {
+    const rows = node.querySelectorAll('tr');
+    if (!rows.length) return null;
+
+    function isNum(text) {
+      return /^[\d\s\.,\-–+%złzł\/()]+$/.test(text.trim()) && /\d/.test(text);
+    }
+
+    // Wykryj kolumny z liczbami
+    const dataRows = Array.from(rows).filter(r => r.querySelector('td'));
+    const numericCols = new Set();
+    dataRows.forEach(row => {
+      Array.from(row.querySelectorAll('td')).forEach((cell, idx) => {
+        if (isNum(cell.textContent)) numericCols.add(idx);
+      });
+    });
+
+    const tableRows = [];
+    rows.forEach((row, rIdx) => {
+      const cells = row.querySelectorAll('th, td');
+      const isHeaderRow = row.querySelector('th') !== null;
+      tableRows.push(new TableRow({
+        tableHeader: isHeaderRow,
+        children: Array.from(cells).map((cell, cIdx) => {
+          const isH = cell.tagName.toLowerCase() === 'th';
+          const cellText = cell.textContent.trim();
+          const isNum = !isH && numericCols.has(cIdx);
+          return new TableCell({
+            children: [new Paragraph({
+              children: [new TextRun({
+                text: cellText,
+                bold: isH,
+                color: isH ? GOLD : TEXT,
+                size: 20,
+                font: 'Calibri',
+              })],
+              alignment: isH ? AlignmentType.LEFT : (isNum ? AlignmentType.RIGHT : AlignmentType.LEFT),
+              spacing: { before: 60, after: 60 },
+            })],
+            shading: isH
+              ? { fill: NAVY, type: ShadingType.CLEAR, color: NAVY }
+              : rIdx % 2 === 0
+                ? { fill: CREAM, type: ShadingType.CLEAR }
+                : { fill: 'FFFFFF', type: ShadingType.CLEAR },
+            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+              left: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+              right: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+            },
+          });
+        }),
+      }));
+    });
+    return new Table({
+      rows: tableRows,
+      width: { size: 100, type: WidthType.PERCENTAGE },
+    });
+  }
+
+  // Przetwarza węzły HTML rekurencyjnie
+  function isNumericCell(text) {
+    return /^[\d\s\.,\-–+%złzł\/()]+$/.test(text.trim()) && text.trim().length > 0;
+  }
+
   function parseNode(node) {
     const tag = node.tagName ? node.tagName.toLowerCase() : '';
-    const text = node.textContent.trim();
-    if (!text && tag !== 'table') return;
-    if (tag === 'h1') children.push(new Paragraph({ text, heading: HeadingLevel.HEADING_1, spacing: { before:240, after:120 } }));
-    else if (tag === 'h2') children.push(new Paragraph({ text, heading: HeadingLevel.HEADING_2, spacing: { before:200, after:100 } }));
-    else if (tag === 'h3') children.push(new Paragraph({ text, heading: HeadingLevel.HEADING_3, spacing: { before:160, after:80 } }));
-    else if (tag === 'p') { if (text) children.push(new Paragraph({ children:[new TextRun({text,size:22})], spacing:{after:120} })); }
-    else if (tag === 'blockquote') children.push(new Paragraph({ children:[new TextRun({text,italics:true,size:22})], indent:{left:720}, border:{left:{color:'C9A84C',size:20,style:BorderStyle.SINGLE}}, spacing:{before:120,after:120} }));
+    const text = (node.textContent || '').trim();
+
+    // Pomijamy h1 — tytuł już jest w nagłówku strony
+    if (tag === 'h1') return;
+    else if (tag === 'h2') { if (text) children.push(makeH2(text)); }
+    else if (tag === 'h3') { if (text) children.push(makeH3(text)); }
+    else if (tag === 'p') { if (text) children.push(makeP(text)); }
+    else if (tag === 'blockquote') { if (text) children.push(makeBlockquote(text)); }
     else if (tag === 'ul' || tag === 'ol') {
-      node.querySelectorAll('li').forEach((li,idx) => {
-        children.push(new Paragraph({ children:[new TextRun({text:(tag==='ol'?(idx+1)+'. ':'• ')+li.textContent.trim(),size:22})], indent:{left:360}, spacing:{after:60} }));
+      node.querySelectorAll(':scope > li').forEach((li, idx) => {
+        if (li.textContent.trim()) children.push(makeLi(li.textContent.trim(), tag === 'ol', idx));
       });
+      children.push(new Paragraph({ text: '', spacing: { after: 80 } }));
     } else if (tag === 'table') {
-      const rows = node.querySelectorAll('tr'); if (!rows.length) return;
-      const tableRows = [];
-      rows.forEach((row,rIdx) => {
-        const cells = row.querySelectorAll('th,td');
-        tableRows.push(new TableRow({ children: Array.from(cells).map(cell => {
-          const isH = cell.tagName.toLowerCase() === 'th';
-          return new TableCell({
-            children:[new Paragraph({ children:[new TextRun({text:cell.textContent.trim(),bold:isH,color:isH?'C9A84C':'1A2540',size:20})], alignment:AlignmentType.LEFT })],
-            shading: isH ? {fill:'0A1628',type:ShadingType.CLEAR,color:'0A1628'} : rIdx%2===0 ? {fill:'FAF8F3',type:ShadingType.CLEAR} : {},
-            margins:{top:80,bottom:80,left:120,right:120}
-          });
-        })}));
-      });
-      children.push(new Table({ rows:tableRows, width:{size:100,type:WidthType.PERCENTAGE} }));
-      children.push(new Paragraph({ text:'', spacing:{after:120} }));
-    } else { node.childNodes.forEach(child => parseNode(child)); }
+      const tbl = makeTable(node);
+      if (tbl) {
+        children.push(tbl);
+        children.push(new Paragraph({ text: '', spacing: { after: 120 } }));
+      }
+    } else if (tag === 'div' || tag === 'section' || tag === 'article' || tag === 'main' || !tag) {
+      Array.from(node.childNodes).forEach(child => parseNode(child));
+    }
   }
-  domDoc.body.firstChild.childNodes.forEach(el => parseNode(el));
-  const doc2 = new Document({
-    creator:'', description:'', title:'', subject:'', keywords:'', lastModifiedBy:'', revision:1,
-    sections:[{ properties:{ page:{ margin:{top:1134,right:1134,bottom:1134,left:1134} } },
-      footers:{ default: new Footer({ children:[new Paragraph({ children:[
-        new TextRun({text:'Port Lotniczy Lublin S.A.    Strona ',size:16,color:'5A6A8A'}),
-        new TextRun({children:[PageNumber.CURRENT],size:16,color:'5A6A8A'}),
-        new TextRun({text:' / ',size:16,color:'5A6A8A'}),
-        new TextRun({children:[PageNumber.TOTAL_PAGES],size:16,color:'5A6A8A'}),
-      ], alignment:AlignmentType.CENTER })] }) },
-      children }]
+
+  // Pomiń pierwszy h1 jeśli jest taki sam jak title (unikamy duplikatu)
+  const allNodes = Array.from(domDoc.body.firstChild.childNodes);
+  let startIdx = 0;
+  if (allNodes.length > 0) {
+    const first = allNodes[0];
+    if (first.tagName && first.tagName.toLowerCase() === 'h1' && first.textContent.trim() === title.trim()) {
+      startIdx = 1;
+    }
+  }
+
+  allNodes.slice(startIdx).forEach(el => parseNode(el));
+
+  // Nagłówek
+  const header = new Header({
+    children: [new Paragraph({
+      children: [
+        new TextRun({ text: 'PORT LOTNICZY LUBLIN S.A.  ·  ', size: 16, color: GOLD, bold: true, font: 'Calibri' }),
+        new TextRun({ text: (meta || '').replace('MATERIAŁ DLA ', '').replace(' · PORT LOTNICZY LUBLIN S.A.', ''), size: 16, color: MUTED, font: 'Calibri' }),
+      ],
+      alignment: AlignmentType.RIGHT,
+      border: { bottom: { color: GOLD, size: 6, style: BorderStyle.SINGLE, space: 4 } },
+      spacing: { after: 0 },
+    })],
   });
+
+  // Stopka z numerami stron
+  const footer = new Footer({
+    children: [new Paragraph({
+      children: [
+        new TextRun({ text: 'Port Lotniczy Lublin S.A.        Strona ', size: 16, color: MUTED, font: 'Calibri' }),
+        new TextRun({ children: [PageNumber.CURRENT], size: 16, color: MUTED, font: 'Calibri' }),
+        new TextRun({ text: ' z ', size: 16, color: MUTED, font: 'Calibri' }),
+        new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: MUTED, font: 'Calibri' }),
+      ],
+      alignment: AlignmentType.CENTER,
+      border: { top: { color: 'D8D0BC', size: 4, style: BorderStyle.SINGLE, space: 4 } },
+      spacing: { before: 0 },
+    })],
+  });
+
+  const doc2 = new Document({
+    creator: '', description: '', title: '', subject: '', keywords: '', lastModifiedBy: '', revision: 1,
+    sections: [{
+      properties: {
+        page: {
+          margin: {
+            top: twip(1.0), right: twip(1.1), bottom: twip(1.0), left: twip(1.1),
+            header: twip(0.4), footer: twip(0.4),
+          },
+        },
+      },
+      headers: { default: header },
+      footers: { default: footer },
+      children: [
+        makeH1(title),
+        new Paragraph({ text: '', spacing: { after: 80 } }),
+        ...children
+      ],
+    }],
+  });
+
   const blob = await Packer.toBlob(doc2);
-  // Konwertuj blob na base64
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result.split(',')[1]);
