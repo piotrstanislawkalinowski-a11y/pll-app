@@ -252,7 +252,7 @@
 <div class="modal-overlay" id="emailModal" onclick="if(event.target===this)closeModal('emailModal')">
   <div class="modal">
     <h2>Wyślij e-mail</h2>
-    <p>Wygeneruję pliki Word i PDF bez metadanych i otworzę klienta pocztowego.</p>
+    <p>Aplikacja pobierze plik Word na Twój komputer i otworzy klienta pocztowego. Dołącz plik do wiadomości przed wysyłką.</p>
     <div class="form-group">
       <label class="form-label">Adres e-mail odbiorcy</label>
       <input class="form-input" type="email" id="emailTo" placeholder="odbiorca@example.com">
@@ -590,26 +590,20 @@ async function generateAndSend() {
   const to = document.getElementById('emailTo').value.trim();
   const subject = document.getElementById('emailSubject').value.trim() || currentTitle;
   if (!to) { document.getElementById('emailStatus').textContent = '⚠️ Wpisz adres e-mail.'; return; }
-  document.getElementById('emailStatus').textContent = '⏳ Generuję dokument Word…';
+  document.getElementById('emailStatus').textContent = '⏳ Wysyłam e-mail…';
   document.getElementById('btnSendEmail').disabled = true;
   localStorage.setItem('lastEmailTo', to);
   try {
     const htmlContent = document.getElementById('docBody').innerHTML;
     const metaLine = document.getElementById('docMeta').textContent;
-    const safeName = currentTitle.replace(/[^a-zA-Z0-9_\-ąćęłńóśźżĄĆĘŁŃÓŚŹŻ ]/g,'').substring(0,50);
 
-    // Generuj tylko DOCX
-    const docxBase64 = await generateDOCXBase64(currentTitle, metaLine, htmlContent);
-
-    // Wyślij przez Resend
-    document.getElementById('emailStatus').textContent = '⏳ Wysyłam e-mail…';
     const resp = await fetch('/.netlify/functions/claude', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'send_email',
         to, subject,
-        docxBase64, docxName: safeName + '.docx'
+        htmlContent, title: currentTitle, meta: metaLine
       })
     });
     const data = await resp.json();
@@ -940,8 +934,8 @@ async function generatePDFBase64(title, meta, htmlContent) {
   return doc.output('datauristring').split(',')[1];
 }
 
-// ── DOCX BASE64 - profesjonalny dokument korporacyjny ──
-async function generateDOCXBase64(title, meta, htmlContent) {
+// ── DOCX BLOB - profesjonalny dokument korporacyjny ──
+async function generateDOCXBlob(title, meta, htmlContent) {
   const {
     Document, Packer, Paragraph, TextRun,
     Table, TableRow, TableCell,
@@ -1186,12 +1180,7 @@ async function generateDOCXBase64(title, meta, htmlContent) {
   });
 
   const blob = await Packer.toBlob(doc2);
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  return blob;
 }
 
 // ── TOAST ──
