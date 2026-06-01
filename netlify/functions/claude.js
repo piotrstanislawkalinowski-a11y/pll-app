@@ -1,5 +1,3 @@
-const https = require('https');
-
 exports.handler = async function (event) {
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: corsHeaders(), body: "" };
@@ -21,7 +19,6 @@ exports.handler = async function (event) {
   }
 };
 
-// ── CLAUDE FORMAT / CORRECT ──
 async function claudeFormat(body) {
   const { text, imageBase64, type, mode, apiKey } = body;
   if (!apiKey) return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ error: "Brak klucza API" }) };
@@ -82,57 +79,42 @@ Nie używaj CSS, atrybutów style, DOCTYPE, html, head, body.`;
   }
 }
 
-// ── SEND EMAIL VIA SENDGRID ──
 async function sendEmail(body) {
   const { to, subject, pdfBase64, docxBase64, pdfName, docxName } = body;
-  const sgKey = process.env.SENDGRID_API_KEY;
+  const resendKey = process.env.RESEND_API_KEY;
 
-  if (!sgKey) return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ error: "Brak klucza SendGrid na serwerze" }) };
+  if (!resendKey) return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ error: "Brak klucza Resend na serwerze" }) };
   if (!to) return { statusCode: 400, headers: corsHeaders(), body: JSON.stringify({ error: "Brak adresu e-mail" }) };
 
+  const attachments = [];
+  if (pdfBase64) attachments.push({ filename: pdfName || "dokument.pdf", content: pdfBase64 });
+  if (docxBase64) attachments.push({ filename: docxName || "dokument.docx", content: docxBase64 });
+
   const payload = {
-    personalizations: [{ to: [{ email: to }] }],
-    from: { email: "piotr.stanislaw.kalinowski@gmail.com", name: "Port Lotniczy Lublin" },
+    from: "Port Lotniczy Lublin <onboarding@resend.dev>",
+    to: [to],
     subject: subject || "Materiał korporacyjny",
-    content: [{ type: "text/plain", value: `W załączeniu przesyłam materiał korporacyjny: ${subject}\n\nDokument wygenerowany przez system Port Lotniczy Lublin.` }],
-    attachments: []
+    text: `W załączeniu przesyłam materiał korporacyjny: ${subject}\n\nDokument wygenerowany przez system Port Lotniczy Lublin.`,
+    attachments
   };
 
-  if (pdfBase64) {
-    payload.attachments.push({
-      content: pdfBase64,
-      filename: pdfName || "dokument.pdf",
-      type: "application/pdf",
-      disposition: "attachment"
-    });
-  }
-
-  if (docxBase64) {
-    payload.attachments.push({
-      content: docxBase64,
-      filename: docxName || "dokument.docx",
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      disposition: "attachment"
-    });
-  }
-
   try {
-    const sgResp = await fetch("https://api.sendgrid.com/v3/mail/send", {
+    const resp = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${sgKey}`
+        "Authorization": `Bearer ${resendKey}`
       },
       body: JSON.stringify(payload)
     });
 
-    if (sgResp.status === 202) {
+    const data = await resp.json();
+
+    if (resp.ok && data.id) {
       return { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ ok: true }) };
     }
 
-    const errData = await sgResp.json().catch(() => ({}));
-    const errMsg = errData?.errors?.[0]?.message || `HTTP ${sgResp.status}`;
-    return { statusCode: sgResp.status, headers: corsHeaders(), body: JSON.stringify({ error: errMsg }) };
+    return { statusCode: resp.status, headers: corsHeaders(), body: JSON.stringify({ error: data?.message || data?.name || "Błąd wysyłki" }) };
   } catch (err) {
     return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ error: err.message }) };
   }
