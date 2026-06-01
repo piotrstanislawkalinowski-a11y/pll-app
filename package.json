@@ -1,0 +1,8 @@
+{
+  "name": "pll-app",
+  "version": "1.0.0",
+  "dependencies": {
+    "docx": "^8.5.0",
+    "jsdom": "^24.0.0"
+  }
+}
