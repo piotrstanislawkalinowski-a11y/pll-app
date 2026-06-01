@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 <style>
   :root {
@@ -165,11 +166,7 @@
     </div>
   </div>
   <div class="header-actions">
-    <div class="mode-tabs">
-      <button class="mode-tab active" data-mode="rada" onclick="setMode('rada')">Rada Nadzorcza</button>
-      <button class="mode-tab" data-mode="zarzad" onclick="setMode('zarzad')">Zarząd</button>
-    </div>
-    <button class="btn btn-ghost" onclick="showApiModal()">🔑 <span>API</span></button>
+    <button class="btn btn-ghost" onclick="showApiModal()">🔑 <span>API Claude</span></button>
   </div>
 </header>
 
@@ -179,6 +176,10 @@
     <span class="status-text" id="statusText">Kliknij „API" i wklej klucz, aby zacząć.</span>
   </div>
   <div class="toolbar">
+    <div class="mode-tabs" style="background:rgba(10,22,40,.08)">
+      <button class="mode-tab active" data-mode="rada" onclick="setMode('rada')" style="color:var(--text-muted)">Rada Nadzorcza</button>
+      <button class="mode-tab" data-mode="zarzad" onclick="setMode('zarzad')" style="color:var(--text-muted)">Zarząd</button>
+    </div>
     <button class="btn btn-gold" id="btnPaste" onclick="pasteAndProcess()">📋 <span>Wklej i formatuj</span></button>
     <button class="btn btn-outline" id="btnCorrect" onclick="showCorrectModal()" disabled>📷 <span>Popraw</span></button>
     <button class="btn btn-outline" id="btnPrint" onclick="window.print()" disabled>🖨️ <span>Drukuj</span></button>
@@ -778,92 +779,155 @@ async function generateDOCX(title, meta, htmlContent) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ── PDF BASE64 (dla e-mail) ──
+// ── PDF BASE64 (jsPDF z autoTable - poprawne polskie znaki) ──
 async function generatePDFBase64(title, meta, htmlContent) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   doc.setProperties({ title:'', author:'', subject:'', keywords:'', creator:'' });
+
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 20, contentW = pageW - margin * 2;
+  const margin = 18;
+  const contentW = pageW - margin * 2;
   let y = margin;
-  doc.setFillColor(10, 22, 40); doc.rect(0, 0, pageW, 35, 'F');
-  doc.setTextColor(201, 168, 76); doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-  doc.text(meta, margin, 12);
-  doc.setTextColor(255, 255, 255); doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-  doc.text(title, margin, 25, { maxWidth: contentW });
-  doc.setDrawColor(201, 168, 76); doc.setLineWidth(0.8); doc.line(0, 35, pageW, 35);
-  y = 45;
+
+  // Nagłówek
+  doc.setFillColor(10, 22, 40);
+  doc.rect(0, 0, pageW, 34, 'F');
+  doc.setDrawColor(201, 168, 76);
+  doc.setLineWidth(0.8);
+  doc.line(0, 34, pageW, 34);
+  doc.setFontSize(8);
+  doc.setTextColor(201, 168, 76);
+  doc.text(meta, margin, 11);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(255, 255, 255);
+  const titleLines = doc.splitTextToSize(title, contentW);
+  doc.text(titleLines, margin, 22);
+  y = 42;
+
+  // Parsuj HTML
   const parser = new DOMParser();
   const domDoc = parser.parseFromString('<div>' + htmlContent + '</div>', 'text/html');
-  doc.setTextColor(26, 37, 64);
-  function checkY(n) { if (y + n > pageH - 20) { doc.addPage(); y = margin; doc.setTextColor(26, 37, 64); } }
+
+  function checkY(needed) {
+    if (y + needed > pageH - 16) {
+      addFooter();
+      doc.addPage();
+      y = margin;
+    }
+  }
+
+  function addFooter() {
+    const pg = doc.internal.getNumberOfPages();
+    doc.setPage(pg);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(90, 106, 138);
+    doc.text('Port Lotniczy Lublin S.A.', margin, pageH - 6);
+    doc.text('Strona ' + pg, pageW - margin, pageH - 6, { align: 'right' });
+  }
+
   function processNode(node) {
     const tag = node.tagName ? node.tagName.toLowerCase() : '';
+    const text = node.textContent.trim();
+
     if (tag === 'h1') {
-      checkY(14); doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(10,22,40);
-      const lines = doc.splitTextToSize(node.textContent.trim(), contentW);
-      doc.text(lines, margin, y); y += lines.length * 7 + 2;
-      doc.setDrawColor(201,168,76); doc.setLineWidth(0.5); doc.line(margin, y, pageW-margin, y); y += 4;
-      doc.setTextColor(26,37,64);
+      checkY(14);
+      doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(10, 22, 40);
+      const lines = doc.splitTextToSize(text, contentW);
+      doc.text(lines, margin, y);
+      y += lines.length * 6.5 + 1;
+      doc.setDrawColor(201, 168, 76); doc.setLineWidth(0.4);
+      doc.line(margin, y, pageW - margin, y);
+      y += 4; doc.setTextColor(26, 37, 64);
+
     } else if (tag === 'h2') {
-      checkY(12); doc.setFontSize(12); doc.setFont('helvetica','bold'); doc.setTextColor(30,49,96);
-      const lines = doc.splitTextToSize(node.textContent.trim(), contentW);
-      doc.text(lines, margin, y); y += lines.length * 6 + 3; doc.setTextColor(26,37,64);
+      checkY(12);
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 49, 96);
+      const lines = doc.splitTextToSize(text, contentW);
+      doc.text(lines, margin, y);
+      y += lines.length * 6 + 3; doc.setTextColor(26, 37, 64);
+
     } else if (tag === 'h3') {
-      checkY(10); doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(10,22,40);
-      const lines = doc.splitTextToSize(node.textContent.trim(), contentW);
-      doc.text(lines, margin, y); y += lines.length * 6 + 2; doc.setTextColor(26,37,64);
+      checkY(10);
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(10, 22, 40);
+      const lines = doc.splitTextToSize(text, contentW);
+      doc.text(lines, margin, y);
+      y += lines.length * 5.5 + 2; doc.setTextColor(26, 37, 64);
+
     } else if (tag === 'p') {
-      checkY(8); doc.setFontSize(10); doc.setFont('helvetica','normal');
-      const lines = doc.splitTextToSize(node.textContent.trim(), contentW);
-      if (lines.join('').trim()) { doc.text(lines, margin, y); y += lines.length * 5.5 + 2; }
+      if (!text) return;
+      checkY(8);
+      doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 37, 64);
+      const lines = doc.splitTextToSize(text, contentW);
+      doc.text(lines, margin, y);
+      y += lines.length * 5.2 + 2;
+
     } else if (tag === 'blockquote') {
-      const text = node.textContent.trim(); if (!text) return;
+      if (!text) return;
+      doc.setFontSize(9.5); doc.setFont('helvetica', 'italic');
       const lines = doc.splitTextToSize(text, contentW - 8);
-      const bqH = lines.length * 5.5 + 8; checkY(bqH);
-      doc.setFillColor(245,233,200); doc.rect(margin, y-4, contentW, bqH, 'F');
-      doc.setDrawColor(201,168,76); doc.setLineWidth(1); doc.line(margin, y-4, margin, y-4+bqH);
-      doc.setFontSize(10); doc.setFont('helvetica','italic'); doc.setTextColor(10,22,40);
-      doc.text(lines, margin+4, y+1); y += bqH + 3; doc.setTextColor(26,37,64);
+      const bqH = lines.length * 5.2 + 8;
+      checkY(bqH);
+      doc.setFillColor(245, 233, 200);
+      doc.rect(margin, y - 4, contentW, bqH, 'F');
+      doc.setDrawColor(201, 168, 76); doc.setLineWidth(1.2);
+      doc.line(margin, y - 4, margin, y - 4 + bqH);
+      doc.setTextColor(10, 22, 40);
+      doc.text(lines, margin + 4, y + 1);
+      y += bqH + 3; doc.setTextColor(26, 37, 64);
+
     } else if (tag === 'ul' || tag === 'ol') {
       node.querySelectorAll('li').forEach((li, idx) => {
-        checkY(7); doc.setFontSize(10); doc.setFont('helvetica','normal');
-        const prefix = tag === 'ol' ? (idx+1)+'. ' : '• ';
-        const lines = doc.splitTextToSize(prefix + li.textContent.trim(), contentW-5);
-        doc.text(lines, margin+3, y); y += lines.length * 5.5 + 1;
-      }); y += 2;
+        const liText = li.textContent.trim();
+        if (!liText) return;
+        checkY(7);
+        doc.setFontSize(9.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 37, 64);
+        const prefix = tag === 'ol' ? (idx + 1) + '. ' : '•  ';
+        const lines = doc.splitTextToSize(prefix + liText, contentW - 6);
+        doc.text(lines, margin + 4, y);
+        y += lines.length * 5.2 + 1;
+      });
+      y += 2;
+
     } else if (tag === 'table') {
-      const rows = node.querySelectorAll('tr'); if (!rows.length) return;
+      const rows = node.querySelectorAll('tr');
+      if (!rows.length) return;
+      checkY(20);
+
+      const head = [];
+      const body = [];
       rows.forEach((row, rIdx) => {
-        const cells = row.querySelectorAll('th,td');
-        const colW = contentW / cells.length;
-        let rowH = 7;
-        cells.forEach(cell => { const lines = doc.splitTextToSize(cell.textContent.trim(), colW-4); rowH = Math.max(rowH, lines.length*5+4); });
-        checkY(rowH);
-        cells.forEach((cell, cIdx) => {
-          const x = margin + cIdx * colW;
-          const isH = cell.tagName.toLowerCase() === 'th';
-          if (isH) { doc.setFillColor(10,22,40); doc.rect(x,y-5,colW,rowH,'F'); doc.setTextColor(201,168,76); }
-          else if (rIdx%2===0) { doc.setFillColor(250,248,243); doc.rect(x,y-5,colW,rowH,'F'); doc.setTextColor(26,37,64); }
-          else { doc.setTextColor(26,37,64); }
-          doc.setDrawColor(216,208,188); doc.setLineWidth(0.3); doc.rect(x,y-5,colW,rowH);
-          doc.setFontSize(9); doc.setFont('helvetica', isH?'bold':'normal');
-          const lines = doc.splitTextToSize(cell.textContent.trim(), colW-4);
-          doc.text(lines, x+2, y);
-        }); y += rowH;
-        doc.setTextColor(26,37,64);
-      }); y += 4;
-    } else { node.childNodes.forEach(child => processNode(child)); }
+        const cells = row.querySelectorAll('th, td');
+        const rowData = Array.from(cells).map(c => c.textContent.trim());
+        if (row.querySelector('th')) head.push(rowData);
+        else body.push(rowData);
+      });
+
+      doc.autoTable({
+        head: head.length ? head : undefined,
+        body: body.length ? body : undefined,
+        startY: y,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8.5, cellPadding: 3, textColor: [26, 37, 64], font: 'helvetica' },
+        headStyles: { fillColor: [10, 22, 40], textColor: [201, 168, 76], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [250, 248, 243] },
+        tableLineColor: [216, 208, 188],
+        tableLineWidth: 0.3,
+        didDrawPage: () => { y = doc.lastAutoTable.finalY + 4; }
+      });
+      y = doc.lastAutoTable.finalY + 4;
+
+    } else {
+      node.childNodes.forEach(child => processNode(child));
+    }
   }
+
   domDoc.body.firstChild.childNodes.forEach(el => processNode(el));
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i); doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(90,106,138);
-    doc.text('Port Lotniczy Lublin S.A.', margin, pageH-8);
-    doc.text('Strona ' + i + ' / ' + totalPages, pageW-margin, pageH-8, { align:'right' });
-  }
-  // Zwróć base64 zamiast pobierać
+  addFooter();
+
   return doc.output('datauristring').split(',')[1];
 }
 
