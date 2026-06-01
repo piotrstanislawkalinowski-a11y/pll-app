@@ -45,7 +45,7 @@
   .btn-navy:hover:not(:disabled){background:var(--navy-mid)}
 
   /* STATUS BAR */
-  .status-bar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .status-bar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:nowrap;position:sticky;top:64px;z-index:99;overflow-x:auto}
   .status-indicator{display:flex;align-items:center;gap:8px;font-size:13px}
   .status-dot{width:8px;height:8px;border-radius:50%;background:#ccc;flex-shrink:0}
   .status-dot.ready{background:#27ae60}
@@ -182,8 +182,8 @@
     </div>
     <button class="btn btn-gold" id="btnPaste" onclick="pasteAndProcess()">📋 <span>Wklej i formatuj</span></button>
     <button class="btn btn-outline" id="btnCorrect" onclick="showCorrectModal()" disabled>📷 <span>Popraw</span></button>
-    <button class="btn btn-outline" id="btnPrint" onclick="window.print()" disabled>🖨️ <span>Drukuj</span></button>
     <button class="btn btn-outline" id="btnEmail" onclick="showEmailModal()" disabled>✉️ <span>E-mail</span></button>
+    <button class="btn btn-outline" id="btnPrint" onclick="window.print()" disabled>🖨️ <span>Drukuj</span></button>
   </div>
 </div>
 
@@ -994,8 +994,9 @@ async function generateDOCXBase64(title, meta, htmlContent) {
   }
 
   function makeP(text) {
+    const cleanText = text.replace(/\s+/g, ' ').trim();
     return new Paragraph({
-      children: [new TextRun({ text, size: 22, color: TEXT, font: 'Calibri' })],
+      children: [new TextRun({ text: cleanText, size: 22, color: TEXT, font: 'Calibri' })],
       alignment: AlignmentType.JUSTIFIED,
       spacing: { before: 60, after: 100, line: 276, lineRule: AUTO },
     });
@@ -1013,8 +1014,9 @@ async function generateDOCXBase64(title, meta, htmlContent) {
   }
 
   function makeLi(text, ordered, idx) {
+    const cleanText = text.replace(/\s+/g, ' ').trim();
     return new Paragraph({
-      children: [new TextRun({ text: (ordered ? (idx+1)+'. ' : '• ') + text, size: 22, color: TEXT, font: 'Calibri' })],
+      children: [new TextRun({ text: (ordered ? (idx+1)+'. ' : '• ') + cleanText, size: 22, color: TEXT, font: 'Calibri' })],
       indent: { left: twip(0.35) },
       spacing: { before: 40, after: 60, line: 276, lineRule: AUTO },
     });
@@ -1056,7 +1058,7 @@ async function generateDOCXBase64(title, meta, htmlContent) {
                 size: 20,
                 font: 'Calibri',
               })],
-              alignment: isH ? AlignmentType.LEFT : (isNum ? AlignmentType.RIGHT : AlignmentType.LEFT),
+              alignment: isH ? AlignmentType.CENTER : (isNum ? AlignmentType.RIGHT : AlignmentType.LEFT),
               spacing: { before: 60, after: 60 },
             })],
             shading: isH
@@ -1098,7 +1100,19 @@ async function generateDOCXBase64(title, meta, htmlContent) {
     else if (tag === 'blockquote') { if (text) children.push(makeBlockquote(text)); }
     else if (tag === 'ul' || tag === 'ol') {
       node.querySelectorAll(':scope > li').forEach((li, idx) => {
-        if (li.textContent.trim()) children.push(makeLi(li.textContent.trim(), tag === 'ol', idx));
+        const liText = li.childNodes.length > 0
+          ? Array.from(li.childNodes)
+              .filter(n => n.nodeType === 3 || (n.tagName && !['ul','ol'].includes(n.tagName.toLowerCase())))
+              .map(n => n.textContent)
+              .join('').trim()
+          : li.textContent.trim();
+        if (liText) children.push(makeLi(liText, tag === 'ol', idx));
+        // Obsłuż zagnieżdżone listy
+        li.querySelectorAll(':scope > ul, :scope > ol').forEach(subList => {
+          subList.querySelectorAll(':scope > li').forEach((subLi, subIdx) => {
+            if (subLi.textContent.trim()) children.push(makeLi('    ' + subLi.textContent.trim(), subList.tagName.toLowerCase() === 'ol', subIdx));
+          });
+        });
       });
       children.push(new Paragraph({ text: '', spacing: { after: 80 } }));
     } else if (tag === 'table') {
@@ -1166,8 +1180,6 @@ async function generateDOCXBase64(title, meta, htmlContent) {
       headers: { default: header },
       footers: { default: footer },
       children: [
-        makeH1(title),
-        new Paragraph({ text: '', spacing: { after: 80 } }),
         ...children
       ],
     }],
