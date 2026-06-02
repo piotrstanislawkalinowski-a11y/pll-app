@@ -27,19 +27,18 @@ async function claudeFormat(body) {
 
   let systemPrompt, messages;
   if (type === "correct") {
-    systemPrompt = `Jesteś ekspertem od redakcji profesjonalnych materiałów korporacyjnych dla ${audienceFull}. Otrzymasz aktualny HTML dokumentu oraz zdjęcie wydruku z odręcznymi poprawkami. Przeanalizuj zdjęcie, odczytaj wszystkie adnotacje i poprawki napisane długopisem, następnie wprowadź je do dokumentu HTML. Zwróć WYŁĄCZNIE poprawiony HTML bez markdown, bez backtick. Zacznij od pierwszego tagu HTML.`;
+    systemPrompt = `Jesteś ekspertem od redakcji profesjonalnych materiałów korporacyjnych dla ${audienceFull}. Otrzymasz aktualny HTML dokumentu oraz zdjęcie wydruku z odręcznymi poprawkami. Przeanalizuj zdjęcie, odczytaj adnotacje i wprowadź je do HTML. Zwróć WYŁĄCZNIE poprawiony HTML bez markdown.`;
     messages = [{ role: "user", content: [
       { type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } },
-      { type: "text", text: `HTML dokumentu. Wprowadź poprawki ze zdjęcia:\n\n${text}` }
+      { type: "text", text: `HTML dokumentu. Wprowadź poprawki:\n\n${text}` }
     ]}];
   } else {
     systemPrompt = `Jesteś ekspertem od przygotowywania profesjonalnych materiałów korporacyjnych dla ${audienceFull}.
-Zwróć WYŁĄCZNIE czysty HTML bez markdown, bez backtick, bez \`\`\`html.
-Zacznij BEZPOŚREDNIO od <h1>.
-Używaj TYLKO: h1,h2,h3,p,ul,ol,li,table,thead,tbody,tr,th,td,blockquote,strong,em,hr.
-NIE używaj CSS, style, class, DOCTYPE, html, head, body, div, span.
-WAŻNE: Przetwórz CAŁY tekst do końca, nie ucinaj. Każdy element z oryginału musi być w HTML.`;
-    messages = [{ role: "user", content: `Sformatuj CAŁY tekst jako materiał dla ${audience}. Nie pomijaj żadnego fragmentu:\n\n${text}` }];
+Zwróć WYŁĄCZNIE czysty HTML bez markdown, bez backtick.
+Zacznij od <h1>. Używaj: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,strong,em,hr.
+Nie używaj CSS, style, class, DOCTYPE, html, head, body, div, span.
+Przetwórz CAŁY tekst - nie pomijaj żadnego fragmentu.`;
+    messages = [{ role: "user", content: `Sformatuj CAŁY tekst dla ${audience}. Nie pomijaj niczego:\n\n${text}` }];
   }
 
   try {
@@ -100,14 +99,20 @@ async function generateDOCX(title, meta, htmlContent) {
   const NAVY = '0A1628', GOLD = 'C9A84C', NAVY_LIGHT = '1E3160';
   const GOLD_PALE = 'F5E9C8', TEXT = '1A2540', MUTED = '5A6A8A', CREAM = 'FAF8F3';
 
-  // Parse HTML bez jsdom - używamy prostego parsera
-  function stripTags(html) {
-    return html.replace(/<[^>]+>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&#\d+;/g,'').trim();
+  function isNum(text) {
+    return /^[\d\s\-–.,+%zł\/():★☆]+$/.test(text.trim()) && /\d/.test(text);
   }
 
-  function isNum(text) {
-    return /^[\d\s\-–.,+%złzłzl\/():★☆]+$/.test(text.trim()) && /\d/.test(text);
+  function getText(node) {
+    if (node.nodeType === 3) return node.nodeValue || '';
+    if (!node.childNodes) return '';
+    return Array.from(node.childNodes).map(getText).join('');
   }
+
+  // Użyj wbudowanego parsera HTML Node.js
+  const { JSDOM } = require('jsdom');
+  const dom = new JSDOM('<!DOCTYPE html><html><body>' + htmlContent + '</body></html>');
+  const body = dom.window.document.body;
 
   const children = [];
 
@@ -119,167 +124,121 @@ async function generateDOCX(title, meta, htmlContent) {
   }));
   children.push(new Paragraph({ text: '', spacing: { after: 100 } }));
 
-  // Parsuj HTML jako tekst z tagami
-  const segments = htmlContent.split(/(<\/?(?:h[1-6]|p|ul|ol|li|table|tr|th|td|thead|tbody|blockquote|strong|em|hr|br)[^>]*>)/gi).filter(s => s);
+  function makeTable(tableNode) {
+    const rows = Array.from(tableNode.querySelectorAll('tr'));
+    if (!rows.length) return null;
 
-  let inList = false, listOrdered = false, listIdx = 0;
-  let inTable = false, tableRows = [], currentRow = [], currentCells = [];
-  let inBlockquote = false, blockquoteText = '';
-  let skipUntil = null;
+    const dataRows = rows.filter(r => r.querySelector('td'));
+    const numericCols = new Set();
+    dataRows.forEach(row => {
+      Array.from(row.querySelectorAll('td')).forEach((cell, idx) => {
+        if (isNum(getText(cell))) numericCols.add(idx);
+      });
+    });
 
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-    if (!seg.trim() && !seg.includes('<')) continue;
-
-    const tagMatch = seg.match(/^<(\/?)(h[1-6]|p|ul|ol|li|table|tr|th|td|thead|tbody|blockquote|strong|em|hr|br)([^>]*)>$/i);
-
-    if (!tagMatch) {
-      // Tekst
-      const text = seg.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&#\d+;/g,'').trim();
-      if (!text) continue;
-
-      if (inTable) {
-        currentCells.push(text);
-      } else if (inBlockquote) {
-        blockquoteText += ' ' + text;
-      } else if (inList) {
-        // tekst wewnątrz li - handled by li tag
-      }
-      continue;
-    }
-
-    const [, closing, tag, attrs] = tagMatch;
-    const tagLower = tag.toLowerCase();
-    const isClose = closing === '/';
-
-    if (tagLower === 'table') {
-      if (!isClose) { inTable = true; tableRows = []; currentRow = []; currentCells = []; }
-      else {
-        inTable = false;
-        if (tableRows.length > 0) {
-          const numericCols = new Set();
-          tableRows.slice(1).forEach(row => {
-            row.forEach((cell, idx) => { if (isNum(cell.text)) numericCols.add(idx); });
+    const tableRows = rows.map((row, rIdx) => {
+      const cells = Array.from(row.querySelectorAll('th, td'));
+      return new TableRow({
+        tableHeader: row.querySelector('th') !== null,
+        children: cells.map((cell, cIdx) => {
+          const isH = cell.tagName.toLowerCase() === 'th';
+          const cellText = getText(cell).replace(/\s+/g, ' ').trim();
+          const isNumCol = !isH && numericCols.has(cIdx);
+          return new TableCell({
+            children: [new Paragraph({
+              children: [new TextRun({ text: cellText, bold: isH, color: isH ? GOLD : TEXT, size: 20, font: 'Calibri' })],
+              alignment: isH ? AlignmentType.CENTER : (isNumCol ? AlignmentType.RIGHT : AlignmentType.LEFT),
+              spacing: { before: 60, after: 60 },
+            })],
+            shading: isH ? { fill: NAVY, type: ShadingType.CLEAR }
+              : rIdx % 2 === 0 ? { fill: CREAM, type: ShadingType.CLEAR }
+              : { fill: 'FFFFFF', type: ShadingType.CLEAR },
+            margins: { top: 80, bottom: 80, left: 120, right: 120 },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+              left: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+              right: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+            },
           });
-          const docRows = tableRows.map((row, rIdx) => new TableRow({
-            tableHeader: row[0]?.isHeader,
-            children: row.map((cell, cIdx) => new TableCell({
-              children: [new Paragraph({
-                children: [new TextRun({ text: cell.text, bold: cell.isHeader, color: cell.isHeader ? GOLD : TEXT, size: 20, font: 'Calibri' })],
-                alignment: cell.isHeader ? AlignmentType.CENTER : (numericCols.has(cIdx) ? AlignmentType.RIGHT : AlignmentType.LEFT),
-                spacing: { before: 60, after: 60 },
-              })],
-              shading: cell.isHeader ? { fill: NAVY, type: ShadingType.CLEAR } : rIdx % 2 === 0 ? { fill: CREAM, type: ShadingType.CLEAR } : { fill: 'FFFFFF', type: ShadingType.CLEAR },
-              margins: { top: 80, bottom: 80, left: 120, right: 120 },
-              borders: { top:{style:BorderStyle.SINGLE,size:4,color:'D8D0BC'}, bottom:{style:BorderStyle.SINGLE,size:4,color:'D8D0BC'}, left:{style:BorderStyle.SINGLE,size:4,color:'D8D0BC'}, right:{style:BorderStyle.SINGLE,size:4,color:'D8D0BC'} },
-            })),
-          }));
-          children.push(new Table({ rows: docRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
-          children.push(new Paragraph({ text: '', spacing: { after: 120 } }));
-        }
-      }
-    } else if (tagLower === 'tr') {
-      if (!isClose) { currentRow = []; }
-      else { if (currentRow.length > 0) tableRows.push(currentRow); currentRow = []; }
-    } else if (tagLower === 'th' || tagLower === 'td') {
-      if (isClose) {
-        const cellText = currentCells.join(' ').trim();
-        currentRow.push({ text: cellText, isHeader: tagLower === 'th' });
-        currentCells = [];
-      }
-    } else if (tagLower === 'blockquote') {
-      if (!isClose) { inBlockquote = true; blockquoteText = ''; }
-      else {
-        inBlockquote = false;
-        const t = blockquoteText.trim();
-        if (t) children.push(new Paragraph({
-          children: [new TextRun({ text: t, italics: true, size: 21, color: NAVY, font: 'Calibri' })],
-          indent: { left: twip(0.3), right: twip(0.3) },
-          shading: { fill: GOLD_PALE, type: ShadingType.CLEAR },
-          border: { left: { color: GOLD, size: 24, style: BorderStyle.SINGLE, space: 8 } },
-          spacing: { before: 140, after: 140, line: 276, lineRule: AUTO },
+        }),
+      });
+    });
+
+    return new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } });
+  }
+
+  function parseNode(node) {
+    if (node.nodeType === 3) return; // tekst bezpośredni - pomijamy
+    const tag = (node.tagName || '').toLowerCase();
+    const text = getText(node).replace(/\s+/g, ' ').trim();
+
+    if (tag === 'h1') return; // tytuł już dodany
+    if (tag === 'h2') {
+      if (text) children.push(new Paragraph({
+        children: [new TextRun({ text, bold: true, size: 26, color: NAVY_LIGHT, font: 'Calibri' })],
+        spacing: { before: 240, after: 120 },
+      }));
+    } else if (tag === 'h3') {
+      if (text) children.push(new Paragraph({
+        children: [new TextRun({ text, bold: true, size: 23, color: NAVY, font: 'Calibri' })],
+        spacing: { before: 180, after: 80 },
+      }));
+    } else if (tag === 'h4' || tag === 'h5' || tag === 'h6') {
+      if (text) children.push(new Paragraph({
+        children: [new TextRun({ text, bold: true, size: 22, color: NAVY, font: 'Calibri' })],
+        spacing: { before: 140, after: 60 },
+      }));
+    } else if (tag === 'p') {
+      if (text) children.push(new Paragraph({
+        children: [new TextRun({ text, size: 22, color: TEXT, font: 'Calibri' })],
+        alignment: AlignmentType.JUSTIFIED,
+        spacing: { before: 60, after: 100, line: 276, lineRule: AUTO },
+      }));
+    } else if (tag === 'blockquote') {
+      if (text) children.push(new Paragraph({
+        children: [new TextRun({ text, italics: true, size: 21, color: NAVY, font: 'Calibri' })],
+        indent: { left: twip(0.3), right: twip(0.3) },
+        shading: { fill: GOLD_PALE, type: ShadingType.CLEAR },
+        border: { left: { color: GOLD, size: 24, style: BorderStyle.SINGLE, space: 8 } },
+        spacing: { before: 140, after: 140, line: 276, lineRule: AUTO },
+      }));
+    } else if (tag === 'ul' || tag === 'ol') {
+      const items = Array.from(node.querySelectorAll(':scope > li'));
+      items.forEach((li, idx) => {
+        const liText = getText(li).replace(/\s+/g, ' ').trim();
+        if (liText) children.push(new Paragraph({
+          children: [new TextRun({ text: (tag === 'ol' ? (idx+1)+'. ' : '• ') + liText, size: 22, color: TEXT, font: 'Calibri' })],
+          indent: { left: twip(0.35) },
+          spacing: { before: 40, after: 60 },
         }));
+      });
+      children.push(new Paragraph({ text: '', spacing: { after: 80 } }));
+    } else if (tag === 'table') {
+      const tbl = makeTable(node);
+      if (tbl) {
+        children.push(tbl);
+        children.push(new Paragraph({ text: '', spacing: { after: 120 } }));
       }
-    } else if (tagLower === 'ul' || tagLower === 'ol') {
-      if (!isClose) { inList = true; listOrdered = tagLower === 'ol'; listIdx = 0; }
-      else { inList = false; children.push(new Paragraph({ text: '', spacing: { after: 80 } })); }
-    } else if (tagLower === 'li') {
-      if (!isClose) { /* start li */ }
-      else {
-        // Zbierz tekst li z segmentów
-        const liText = currentCells.join(' ').trim();
-        currentCells = [];
-        if (liText) {
-          children.push(new Paragraph({
-            children: [new TextRun({ text: (listOrdered ? (++listIdx)+'. ' : '• ') + liText, size: 22, color: TEXT, font: 'Calibri' })],
-            indent: { left: twip(0.35) },
-            spacing: { before: 40, after: 60 },
-          }));
-        }
-      }
-    } else if (tagLower.match(/^h[1-6]$/)) {
-      if (isClose) {
-        const t = currentCells.join(' ').trim();
-        currentCells = [];
-        const level = parseInt(tagLower[1]);
-        if (t) {
-          if (level === 1) {
-            // pomijamy h1 — tytuł już dodany
-          } else if (level === 2) {
-            children.push(new Paragraph({ children: [new TextRun({ text: t, bold: true, size: 26, color: NAVY_LIGHT, font: 'Calibri' })], spacing: { before: 240, after: 120 } }));
-          } else if (level === 3) {
-            children.push(new Paragraph({ children: [new TextRun({ text: t, bold: true, size: 23, color: NAVY, font: 'Calibri' })], spacing: { before: 180, after: 80 } }));
-          } else {
-            children.push(new Paragraph({ children: [new TextRun({ text: t, bold: true, size: 22, color: NAVY, font: 'Calibri' })], spacing: { before: 140, after: 60 } }));
-          }
-        }
-      } else { currentCells = []; }
-    } else if (tagLower === 'p') {
-      if (isClose) {
-        const t = currentCells.join(' ').trim();
-        currentCells = [];
-        if (t) children.push(new Paragraph({
-          children: [new TextRun({ text: t, size: 22, color: TEXT, font: 'Calibri' })],
-          alignment: AlignmentType.JUSTIFIED,
-          spacing: { before: 60, after: 100, line: 276, lineRule: AUTO },
-        }));
-      } else { currentCells = []; }
-    } else if (tagLower === 'hr') {
+    } else if (tag === 'hr') {
       children.push(new Paragraph({
         children: [new TextRun({ text: '' })],
         border: { bottom: { color: 'D8D0BC', size: 6, style: BorderStyle.SINGLE, space: 4 } },
         spacing: { before: 120, after: 120 },
       }));
-    }
-
-    // Zbierz tekst wewnątrz tagów
-    if (!isClose && (tagLower === 'h1' || tagLower === 'h2' || tagLower === 'h3' || tagLower === 'h4' || tagLower === 'h5' || tagLower === 'h6' || tagLower === 'p' || tagLower === 'li' || tagLower === 'th' || tagLower === 'td')) {
-      currentCells = [];
-      // Zbierz kolejne segmenty aż do zamknięcia tagu
-      let depth = 1;
-      let collected = [];
-      let j = i + 1;
-      while (j < segments.length && depth > 0) {
-        const s = segments[j];
-        const m = s.match(/^<(\/?)(h[1-6]|p|li|th|td)([^>]*)>$/i);
-        if (m) {
-          if (m[2].toLowerCase() === tagLower) {
-            if (m[1] === '/') depth--;
-            else depth++;
-          }
-          if (depth === 0) break;
-        }
-        if (!s.match(/^<[^>]+>$/)) {
-          collected.push(s.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/&#\d+;/g,''));
-        }
-        j++;
-      }
-      currentCells = collected;
-      i = j; // skip to closing tag
+    } else {
+      // div, section, article, body itd. - wejdź głębiej
+      Array.from(node.childNodes).forEach(child => parseNode(child));
     }
   }
 
-  const metaClean = meta.replace(/MATERIAA? DLA /i,'').replace(/MATERIAŁ DLA /i,'').replace(/ · PORT LOTNICZY LUBLIN S\.A\./i,'').trim();
+  Array.from(body.childNodes).forEach(node => parseNode(node));
+
+  const metaClean = meta
+    .replace(/MATERIAA? DLA /i, '')
+    .replace(/MATERIAŁ DLA /i, '')
+    .replace(/ · PORT LOTNICZY LUBLIN S\.A\./gi, '')
+    .trim();
 
   const header = new Header({ children: [new Paragraph({
     children: [
@@ -305,7 +264,10 @@ async function generateDOCX(title, meta, htmlContent) {
   const document = new Document({
     creator: '', description: '', title: '', subject: '', keywords: '', lastModifiedBy: '', revision: 1,
     sections: [{
-      properties: { page: { margin: { top: twip(1.0), right: twip(1.1), bottom: twip(1.0), left: twip(1.1), header: twip(0.4), footer: twip(0.4) } } },
+      properties: { page: { margin: {
+        top: twip(1.0), right: twip(1.1), bottom: twip(1.0), left: twip(1.1),
+        header: twip(0.4), footer: twip(0.4)
+      }}},
       headers: { default: header },
       footers: { default: footer },
       children,
