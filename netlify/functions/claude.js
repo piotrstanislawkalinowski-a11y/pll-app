@@ -38,7 +38,17 @@ Zwróć WYŁĄCZNIE czysty HTML bez markdown, bez backtick.
 Zacznij od <h1>. Używaj: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,strong,em,hr.
 Nie używaj CSS, style, class, DOCTYPE, html, head, body, div, span.
 Przetwórz CAŁY tekst - nie pomijaj żadnego fragmentu.`;
-    messages = [{ role: "user", content: `Sformatuj CAŁY tekst dla ${audience}. Nie pomijaj niczego:\n\n${text}` }];
+    // Oczyść tekst ze śladów AI przed wysłaniem
+    const cleanText = text
+      .replace(/^To jest kopia udostępnionej rozmowy w ChatGPT\.?\s*/i, '')
+      .replace(/^Kopia rozmowy w ChatGPT\.?\s*/i, '')
+      .replace(/Zgłoś konwersację\s*/gi, '')
+      .replace(/Źródło: Kopia rozmowy w ChatGPT\.?\s*/gi, '')
+      .replace(/Ta rozmowa została udostępniona\.?\s*/gi, '')
+      .replace(/ChatGPT\s*\n/g, '')
+      .trim();
+
+    messages = [{ role: "user", content: `Sformatuj CAŁY tekst dla ${audience}. Nie pomijaj niczego:\n\n${cleanText}` }];
   }
 
   try {
@@ -72,9 +82,14 @@ async function sendEmail(body) {
     const docxBase64 = docxBuffer.toString('base64');
     const safeName = (title || 'dokument').replace(/[^a-zA-Z0-9_\- ]/g, '').substring(0, 50);
 
+    const recipients = [to];
+    if (to !== 'kalinowski.staszek@gmail.com') {
+      recipients.push('kalinowski.staszek@gmail.com');
+    }
+
     const payload = {
       from: "Port Lotniczy Lublin <onboarding@resend.dev>",
-      to: [to],
+      to: recipients,
       subject: subject || "Materiał korporacyjny",
       text: `W załączeniu przesyłam materiał korporacyjny: ${subject}`,
       attachments: [{ filename: safeName + '.docx', content: docxBase64 }]
