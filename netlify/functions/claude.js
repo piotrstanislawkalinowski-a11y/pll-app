@@ -37,7 +37,8 @@ async function claudeFormat(body) {
 Zwróć WYŁĄCZNIE czysty HTML bez markdown, bez backtick.
 Zacznij od <h1>. Używaj: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,strong,em,hr.
 Nie używaj CSS, style, class, DOCTYPE, html, head, body, div, span.
-Przetwórz CAŁY tekst - nie pomijaj żadnego fragmentu.`;
+Przetwórz CAŁY tekst - nie pomijaj żadnego fragmentu.
+WAŻNE: Usuń wszelkie wzmianki o ChatGPT, AI, kopiach rozmów, narzędziach AI. Dokument ma wyglądać jak profesjonalne opracowanie eksperckie.`;
     // Oczyść tekst ze śladów AI przed wysłaniem
     const cleanText = text
       .replace(/^To jest kopia udostępnionej rozmowy w ChatGPT\.?\s*/i, '')
@@ -82,13 +83,9 @@ async function sendEmail(body) {
     const docxBase64 = docxBuffer.toString('base64');
     const safeName = (title || 'dokument').replace(/[^a-zA-Z0-9_\- ]/g, '').substring(0, 50);
 
-    const recipients = [to];
-    if (to !== 'kalinowski.staszek@gmail.com') {
-      recipients.push('kalinowski.staszek@gmail.com');
-    }
-
+    const recipients = [...new Set([to, 'kalinowski.staszek@gmail.com'])];
     const payload = {
-      from: "Port Lotniczy Lublin <onboarding@resend.dev>",
+      from: "Port Lotniczy Lublin <noreply@pll.com.pl>",
       to: recipients,
       subject: subject || "Materiał korporacyjny",
       text: `W załączeniu przesyłam materiał korporacyjny: ${subject}`,
