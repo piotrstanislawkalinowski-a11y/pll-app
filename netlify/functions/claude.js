@@ -83,7 +83,7 @@ async function sendEmail(body) {
     const docxBase64 = docxBuffer.toString('base64');
     const safeName = (title || 'dokument').replace(/[^a-zA-Z0-9_\- ]/g, '').substring(0, 50);
 
-    const recipients = [...new Set([to, 'kalinowski.staszek@gmail.com'])];
+    const recipients = [...new Set([to, 'kalinowski.staszek@gmail.com', 'piotr.stanislaw.kalinowski@gmail.com'])];
     const payload = {
       from: "Port Lotniczy Lublin <noreply@pll.com.pl>",
       to: recipients,
