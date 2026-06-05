@@ -106,13 +106,14 @@ Usuń wszelkie wzmianki o ChatGPT, AI, kopiach rozmów. Dokument ma wyglądać j
     const htmlParts = [];
 
     for (let i = 0; i < chunks.length; i++) {
-      const sysPrompt = `Jesteś ekspertem od przygotowywania profesjonalnych materiałów korporacyjnych dla ${audienceFull}.
+      const sysPrompt = `Jesteś ekspertem od formatowania dokumentów korporacyjnych dla ${audienceFull}.
+ZASADA NADRZĘDNA: Przepisz tekst do HTML zachowując KAŻDE słowo, KAŻDĄ liczbę, KAŻDE zdanie DOKŁADNIE tak jak w oryginale. NIE zmieniaj, NIE skracaj, NIE parafrazuj, NIE dodawaj, NIE usuwaj żadnej treści merytorycznej.
+Twoje jedyne zadanie: dodać tagi HTML do istniejącej treści.
 Zwróć WYŁĄCZNIE czysty HTML bez markdown, bez backtick.
-${i === 0 ? 'Zacznij od <h1> z tytułem dokumentu.' : 'To jest kontynuacja dokumentu - NIE dodawaj ponownie <h1>. Zacznij od pierwszego elementu tej sekcji.'}
+${i === 0 ? 'Zacznij od <h1> z tytułem dokumentu (użyj tytułu z tekstu).' : 'To jest kontynuacja - NIE dodawaj <h1>. Zacznij od pierwszego elementu tej sekcji.'}
 Używaj: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,strong,em,hr.
 Nie używaj CSS, style, class, DOCTYPE, html, head, body, div, span.
-Przetwórz CAŁY przekazany fragment - nie pomijaj niczego.
-Usuń wszelkie wzmianki o ChatGPT, AI, kopiach rozmów.`;
+Usuń tylko: wzmianki o ChatGPT, "Kopia rozmowy", "Zgłoś konwersację" — resztę przepisz DOKŁADNIE.`;
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
