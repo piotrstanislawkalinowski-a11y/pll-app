@@ -98,39 +98,34 @@ async function claudeFormat(body) {
   try {
     const htmlParts = [];
     for (let i = 0; i < chunks.length; i++) {
-      const sysPrompt = `Jesteś ekspertem od formatowania dokumentów korporacyjnych dla ${audienceFull}.
-ZASADA NADRZĘDNA: Przepisz tekst do HTML zachowując KAŻDE słowo, KAŻDĄ liczbę, KAŻDE zdanie DOKŁADNIE tak jak w oryginale. NIE zmieniaj, NIE skracaj, NIE parafrazuj, NIE dodawaj, NIE usuwaj żadnej treści merytorycznej.
+      const sysPrompt = `Jesteś narzędziem do formatowania HTML. Twoja jedyna rola: dodać tagi HTML do tekstu. NIE jesteś asystentem, NIE piszesz od siebie, NIE ulepszasz, NIE redagujesz.
+
+ZASADA ABSOLUTNA: Każde słowo, każda liczba, każde zdanie z oryginału musi pojawić się w HTML dokładnie w tej samej formie. Dosłownie. Znak po znaku. Jedyne co robisz to owijasz fragmenty w odpowiednie tagi HTML.
+
+JEDYNE dozwolone zmiany:
+- Usuń fragmenty dialogu z ChatGPT (pytania użytkownika, odpowiedzi AI, "Tak.", "Najpierw...", "To pokazuje...", "Jak widać...", "Podsumowując...")
+- Usuń: "Kopia rozmowy w ChatGPT", "Zgłoś konwersację", linki URL (http/https)
+- Usuń przyciski interfejsu: "Like", "Share", "Kopiuj", znaczniki czasu
+
+WSZYSTKO INNE przepisz DOSŁOWNIE — bez żadnych zmian.
+
 Zwróć WYŁĄCZNIE czysty HTML bez markdown, bez backtick.
-${i === 0 ? 'Zacznij od <h1> z tytułem dokumentu.' : 'To jest kontynuacja - NIE dodawaj <h1>. Zacznij od pierwszego elementu tej sekcji.'}
+${i === 0 ? 'Zacznij od <h1> z tytułem dokumentu (użyj dokładnego tytułu z tekstu).' : 'To jest kontynuacja - NIE dodawaj <h1>. Zacznij od pierwszego elementu.'}
 
-STRUKTURA HTML którą MUSISZ stosować:
+STRUKTURA HTML:
+1. Tytuł: <h1>dokładny tytuł</h1>
+2. Podtytuł: <p class="subtitle">tekst</p>
+3. Executive summary / wprowadzenie w ramce: <blockquote>tekst</blockquote>
+4. Etykieta rozdziału: <p class="chapter-label">ROZDZIAŁ 01</p> + zaraz po: <h2>tytuł rozdziału</h2>
+5. Podsekcja: <h3>tekst</h3>
+6. Kluczowy wniosek: <div class="key-insight"><p class="key-label">KLUCZOWY WNIOSEK</p><p>treść</p></div>
+7. Tabele: <table><tr><th>nagłówek</th></tr><tr><td>dane</td></tr></table>
+8. Listy: <ul><li>punkt</li></ul> lub <ol><li>punkt</li></ol>
+9. Akapity: <p>tekst</p>
+10. Linia: <hr/>
 
-1. TYTUŁ DOKUMENTU: <h1>Tytuł</h1>
-
-2. PODTYTUŁ (np. "Materiał przygotowany dla Rady Nadzorczej"): <p class="subtitle">tekst</p>
-
-3. EXECUTIVE SUMMARY / WPROWADZENIE (pierwszy akapit kursywą w ramce): <blockquote>tekst</blockquote>
-
-4. ETYKIETA ROZDZIAŁU (np. "ROZDZIAŁ 01", "ROZDZIAŁ 02"): <p class="chapter-label">ROZDZIAŁ 01</p>
-   Zaraz po etykiecie nagłówek rozdziału: <h2>Tytuł rozdziału</h2>
-
-5. PODSEKCJA (np. "Cel: 1-2 bazowane samoloty", "Fundament: low-cost + leisure"): <h3>tekst</h3>
-
-6. KLUCZOWY WNIOSEK / wyróżniony blok: <div class="key-insight"><p class="key-label">KLUCZOWY WNIOSEK</p><p>treść</p></div>
-
-7. TABELE: <table><tr><th>Nagłówek</th></tr><tr><td>dane</td></tr></table>
-
-8. LISTY: <ul><li>punkt</li></ul> lub <ol><li>punkt</li></ol>
-
-9. AKAPITY: <p>tekst</p>
-
-10. LINIA POZIOMA: <hr/>
-
-Używaj TYLKO tych tagów: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,hr i atrybutu class TYLKO dla: subtitle, chapter-label, key-insight, key-label.
-NIE używaj innych CSS, style, DOCTYPE, html, head, body, div (poza key-insight), span.
-
-BEZWZGLĘDNIE USUŃ: linki URL, wzmianki o ChatGPT/AI, fragmenty dialogu, znaczniki interfejsu.
-Dokument ma wyglądać jak profesjonalne opracowanie eksperckie.`;
+Dozwolone tagi: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,hr i class TYLKO dla: subtitle,chapter-label,key-insight,key-label.
+NIE używaj: CSS, style, DOCTYPE, html, head, body, span, div (poza key-insight).`;
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -196,10 +191,11 @@ async function generateDOCX(title, meta, htmlContent) {
   const { JSDOM } = require('jsdom');
 
   // Kolory z wzorca
-  const NAVY    = '1E3A5F'; // tytuł, body navy — średni granat
-  const NAVY_H2 = '1C3D6B'; // H2 nagłówki rozdziałów — nieco ciemniejszy
-  const NAVY_H3 = '1E3A5F'; // H3 podsekcje
-  const HDR_BG  = '1E3A5F'; // tło nagłówka tabeli — z wzorca XML
+  const NAVY    = '1E3A5F';
+  const NAVY_H2 = '1E3A5F';
+  const NAVY_H3 = '1E3A5F';
+  const HDR_BG  = 'FFFFFF'; // brak tła nagłówka — oszczędność atramentu
+  const HDR_BORDER = '1E3A5F'; // gruba granatowa ramka zamiast tła
   const GOLD    = 'C9A84C';
   const GOLD_BQ = 'C9A84C'; // kolor lewej krawędzi blockquote
   const BQ_BG   = 'F5E9C8'; // tło blockquote
@@ -292,8 +288,8 @@ async function generateDOCX(title, meta, htmlContent) {
             children: [new Paragraph({
               children: [new TextRun({
                 text: cellText,
-                bold: isH,
-                color: isH ? GOLD : TEXT,
+                bold: true,
+                color: isH ? NAVY : TEXT,
                 size: 20,
                 font: { name: 'Calibri', cs: 'Calibri' }
               })],
@@ -302,16 +298,13 @@ async function generateDOCX(title, meta, htmlContent) {
                 : AlignmentType.LEFT,
               spacing: { before: 60, after: 60 },
             })],
-            shading: isH
-              ? { fill: HDR_BG, type: ShadingType.CLEAR }
-              : rIdx % 2 === 0 ? { fill: CREAM, type: ShadingType.CLEAR }
-              : { fill: WHITE, type: ShadingType.CLEAR },
+            shading: { fill: WHITE, type: ShadingType.CLEAR },
             margins: { top: 80, bottom: 80, left: 120, right: 120 },
             borders: {
-              top:    { style: BorderStyle.SINGLE, size: 4, color: BORDER },
-              bottom: { style: BorderStyle.SINGLE, size: 4, color: BORDER },
-              left:   { style: BorderStyle.SINGLE, size: 4, color: BORDER },
-              right:  { style: BorderStyle.SINGLE, size: 4, color: BORDER },
+              top:    { style: BorderStyle.SINGLE, size: isH ? 12 : 4, color: isH ? NAVY : BORDER },
+              bottom: { style: BorderStyle.SINGLE, size: isH ? 12 : 4, color: isH ? NAVY : BORDER },
+              left:   { style: BorderStyle.SINGLE, size: isH ? 12 : 4, color: isH ? NAVY : BORDER },
+              right:  { style: BorderStyle.SINGLE, size: isH ? 12 : 4, color: isH ? NAVY : BORDER },
             },
           });
         }),
@@ -390,16 +383,15 @@ async function generateDOCX(title, meta, htmlContent) {
       if (rawText) children.push(new Paragraph({
         children: [new TextRun({ text: rawText, size: 22, color: TEXT, font: { name: 'Calibri', cs: 'Calibri' } })],
         alignment: AlignmentType.BOTH,
-        spacing: { before: 60, after: 100, line: 276, lineRule: AUTO },
+        spacing: { before: 0, after: 60, line: 260, lineRule: AUTO },
       }));
     } else if (tag === 'blockquote') {
-      // Executive summary — kursywa, beżowe tło, BEZ lewej krawędzi (jak na zdjęciach)
       if (rawText) children.push(new Paragraph({
         children: [new TextRun({ text: rawText, italics: true, size: 21, color: NAVY, font: { name: 'Calibri', cs: 'Calibri' } })],
         alignment: AlignmentType.BOTH,
         indent: { left: 200, right: 200 },
         spacing: { before: 140, after: 140, line: 276, lineRule: AUTO },
-        shading: { fill: BQ_BG, type: ShadingType.CLEAR },
+        border: { left: { color: NAVY, size: 24, style: BorderStyle.SINGLE, space: 8 } },
       }));
     } else if (tag === 'ul' || tag === 'ol') {
       Array.from(node.querySelectorAll(':scope > li')).forEach((li, idx) => {
@@ -457,6 +449,8 @@ async function generateDOCX(title, meta, htmlContent) {
     children: [
       new TextRun({ text: shortTitle + '  |  Port Lotniczy Lublin  |  Strona ', size: 16, color: MUTED, font: { name: 'Calibri', cs: 'Calibri' } }),
       new TextRun({ children: [PageNumber.CURRENT], size: 16, color: MUTED, font: { name: 'Calibri', cs: 'Calibri' } }),
+      new TextRun({ text: ' / ', size: 16, color: MUTED, font: { name: 'Calibri', cs: 'Calibri' } }),
+      new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: MUTED, font: { name: 'Calibri', cs: 'Calibri' } }),
     ],
     alignment: AlignmentType.CENTER,
     border: { top: { color: BORDER, size: 4, style: BorderStyle.SINGLE, space: 4 } },
