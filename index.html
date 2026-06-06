@@ -137,15 +137,18 @@
 
   @media print{
     .header,.status-bar,.modal-overlay,.toast,.history-panel{display:none!important}
-    body{background:white}.main{background:white}
+    body{background:white;font-size:10pt}.main{background:white}
     .doc-area{padding:0;max-width:100%}
     .doc-content{box-shadow:none;border:none}
-    .doc-header-band{background:#0a1628 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:16px 24px}
-    .doc-header-band h1{color:white !important}.doc-meta{color:#c9a84c !important}
-    .doc-body{padding:16px 24px}
-    .doc-body th{background:#0a1628 !important;color:#c9a84c !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .doc-body blockquote{background:#f5e9c8 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    @page{size:A4;margin:2cm 2cm 2.5cm 2cm;@bottom-center{content:"Strona " counter(page) " / " counter(pages);font-size:9pt;color:#5a6a8a;}@bottom-left{content:"Port Lotniczy Lublin S.A.";font-size:8pt;color:#5a6a8a;}}
+    .doc-header-band{background:#1e3a5f !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:16px 24px}
+    .doc-header-band h1{color:white !important;font-size:16pt !important}.doc-meta{color:#c9a84c !important;font-size:9pt !important}
+    .doc-body{padding:16px 24px;font-size:10pt}
+    .doc-body h2{font-size:14pt !important;color:#1c3d6b !important}
+    .doc-body h3{font-size:12pt !important;color:#1e3a5f !important}
+    .doc-body p{font-size:10pt !important}
+    .doc-body th{background:#1e3a5f !important;color:#c9a84c !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:10pt !important}
+    .doc-body blockquote{background:#f5e9c8 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:10pt !important;border-left:none !important}
+    @page{size:A4;margin:2cm 2.2cm 2.5cm 2.2cm}
   }
   @media(max-width:600px){
     .header{padding:0 12px}.logo-text{font-size:13px}
