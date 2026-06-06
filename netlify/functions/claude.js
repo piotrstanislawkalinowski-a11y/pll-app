@@ -221,6 +221,29 @@ async function generateDOCX(title, meta, htmlContent) {
       });
     });
 
+    // Wykryj liczbę kolumn
+    const firstRow = rows[0];
+    const colCount = firstRow ? firstRow.querySelectorAll('th, td').length : 2;
+
+    // Punkt 1: szerokość tabeli w DXA (nie PERCENTAGE)
+    const TABLE_WIDTH = 8870;
+
+    // Punkt 2: szerokości kolumn w DXA (suma = 8870)
+    function getColWidths(count) {
+      if (count === 1) return [8870];
+      if (count === 2) return [4435, 4435];
+      if (count === 3) return [2957, 2957, 2956];
+      if (count === 4) return [2218, 2218, 2217, 2217];
+      if (count === 5) return [1774, 1774, 1774, 1774, 1774];
+      // Dla większej liczby kolumn dziel równo
+      const w = Math.floor(8870 / count);
+      const widths = Array(count).fill(w);
+      widths[count - 1] = 8870 - w * (count - 1);
+      return widths;
+    }
+
+    const colWidths = getColWidths(colCount);
+
     const tableRows = rows.map((row, rIdx) => {
       const cells = Array.from(row.querySelectorAll('th, td'));
       return new TableRow({
@@ -229,13 +252,17 @@ async function generateDOCX(title, meta, htmlContent) {
           const isH = cell.tagName.toLowerCase() === 'th';
           const cellText = getText(cell).replace(/\s+/g, ' ').trim();
           const isNumCol = !isH && numericCols.has(cIdx);
+          const cellWidth = colWidths[cIdx] || Math.floor(8870 / colCount);
           return new TableCell({
+            // Punkt 3: tcW na poziomie komórki
+            width: { size: cellWidth, type: WidthType.DXA },
             children: [new Paragraph({
               children: [new TextRun({ text: cellText, bold: isH, color: isH ? GOLD : TEXT, size: 20, font: 'Calibri' })],
               alignment: isH ? AlignmentType.CENTER : (isNumCol ? AlignmentType.RIGHT : AlignmentType.LEFT),
               spacing: { before: 60, after: 60 },
             })],
-            shading: isH ? { fill: NAVY, type: ShadingType.CLEAR }
+            // Punkt 4: kolor nagłówka 1E3A5F zamiast 0A1628
+            shading: isH ? { fill: '1E3A5F', type: ShadingType.CLEAR }
               : rIdx % 2 === 0 ? { fill: CREAM, type: ShadingType.CLEAR }
               : { fill: 'FFFFFF', type: ShadingType.CLEAR },
             margins: { top: 80, bottom: 80, left: 120, right: 120 },
@@ -250,7 +277,12 @@ async function generateDOCX(title, meta, htmlContent) {
       });
     });
 
-    return new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } });
+    // Punkt 1: size w DXA, nie PERCENTAGE
+    return new Table({
+      rows: tableRows,
+      width: { size: TABLE_WIDTH, type: WidthType.DXA },
+      columnWidths: colWidths,
+    });
   }
 
   function parseNode(node) {
