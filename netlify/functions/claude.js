@@ -50,7 +50,7 @@ async function claudeFormat(body) {
     }
   }
 
-  // Oczyść tekst ze śladów AI
+  // Oczyść tekst ze śladów AI i dialogu
   const cleanText = text
     .replace(/^To jest kopia udostępnionej rozmowy w ChatGPT\.?\s*/i, '')
     .replace(/^Kopia rozmowy w ChatGPT\.?\s*/i, '')
@@ -58,16 +58,19 @@ async function claudeFormat(body) {
     .replace(/Źródło: Kopia rozmowy w ChatGPT\.?\s*/gi, '')
     .replace(/Ta rozmowa została udostępniona\.?\s*/gi, '')
     .replace(/ChatGPT\s*\n/g, '')
+    .replace(/https?:\/\/[^\s\n]*/gi, '')
+    .replace(/^(Ty|User|ChatGPT|AI|Asystent|You)\s*:\s*.*/gim, '')
+    .replace(/^\d{1,2}:\d{2}\s*(AM|PM)?\s*$/gim, '')
+    .replace(/^(Skopiowano|Copied|Like|Dislike|Share|Udostępnij)\s*$/gim, '')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-  // Podziel tekst na sekcje po nagłówkach (max ~1500 znaków każda)
+  // Podziel na chunki ~2000 znaków po sekcjach
   function splitIntoChunks(text, maxLen = 2000) {
     const lines = text.split('\n');
     const chunks = [];
     let current = '';
-
     for (const line of lines) {
-      // Nowa sekcja przy nagłówku jeśli current jest już duży
       const isHeader = /^(KOSZYK|[IVX]+\.|[0-9]+\.|#{1,3}\s|\*{2}[A-ZĄĆĘŁŃÓŚŹŻ])/i.test(line.trim());
       if (isHeader && current.length > maxLen * 0.5) {
         if (current.trim()) chunks.push(current.trim());
@@ -75,7 +78,6 @@ async function claudeFormat(body) {
       } else {
         current += line + '\n';
         if (current.length > maxLen) {
-          // Szukaj ostatniego podziału akapitu
           const lastBreak = current.lastIndexOf('\n\n');
           if (lastBreak > maxLen * 0.3) {
             chunks.push(current.substring(0, lastBreak).trim());
@@ -92,28 +94,43 @@ async function claudeFormat(body) {
   }
 
   const chunks = splitIntoChunks(cleanText);
-  const isFirstChunk = (idx) => idx === 0;
-
-  const systemPrompt = `Jesteś ekspertem od przygotowywania profesjonalnych materiałów korporacyjnych dla ${audienceFull}.
-Zwróć WYŁĄCZNIE czysty HTML bez markdown, bez backtick.
-${isFirstChunk ? 'Zacznij od <h1> z tytułem dokumentu.' : 'NIE dodawaj <h1> - to jest kontynuacja dokumentu. Zacznij od pierwszego elementu tej sekcji.'}
-Używaj: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,strong,em,hr.
-Nie używaj CSS, style, class, DOCTYPE, html, head, body, div, span.
-Przetwórz CAŁY przekazany fragment - nie pomijaj niczego.
-Usuń wszelkie wzmianki o ChatGPT, AI, kopiach rozmów. Dokument ma wyglądać jak profesjonalne opracowanie eksperckie.`;
 
   try {
     const htmlParts = [];
-
     for (let i = 0; i < chunks.length; i++) {
       const sysPrompt = `Jesteś ekspertem od formatowania dokumentów korporacyjnych dla ${audienceFull}.
 ZASADA NADRZĘDNA: Przepisz tekst do HTML zachowując KAŻDE słowo, KAŻDĄ liczbę, KAŻDE zdanie DOKŁADNIE tak jak w oryginale. NIE zmieniaj, NIE skracaj, NIE parafrazuj, NIE dodawaj, NIE usuwaj żadnej treści merytorycznej.
-Twoje jedyne zadanie: dodać tagi HTML do istniejącej treści.
 Zwróć WYŁĄCZNIE czysty HTML bez markdown, bez backtick.
-${i === 0 ? 'Zacznij od <h1> z tytułem dokumentu (użyj tytułu z tekstu).' : 'To jest kontynuacja - NIE dodawaj <h1>. Zacznij od pierwszego elementu tej sekcji.'}
-Używaj: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,strong,em,hr.
-Nie używaj CSS, style, class, DOCTYPE, html, head, body, div, span.
-Usuń tylko: wzmianki o ChatGPT, "Kopia rozmowy", "Zgłoś konwersację" — resztę przepisz DOKŁADNIE.`;
+${i === 0 ? 'Zacznij od <h1> z tytułem dokumentu.' : 'To jest kontynuacja - NIE dodawaj <h1>. Zacznij od pierwszego elementu tej sekcji.'}
+
+STRUKTURA HTML którą MUSISZ stosować:
+
+1. TYTUŁ DOKUMENTU: <h1>Tytuł</h1>
+
+2. PODTYTUŁ (np. "Materiał przygotowany dla Rady Nadzorczej"): <p class="subtitle">tekst</p>
+
+3. EXECUTIVE SUMMARY / WPROWADZENIE (pierwszy akapit kursywą w ramce): <blockquote>tekst</blockquote>
+
+4. ETYKIETA ROZDZIAŁU (np. "ROZDZIAŁ 01", "ROZDZIAŁ 02"): <p class="chapter-label">ROZDZIAŁ 01</p>
+   Zaraz po etykiecie nagłówek rozdziału: <h2>Tytuł rozdziału</h2>
+
+5. PODSEKCJA (np. "Cel: 1-2 bazowane samoloty", "Fundament: low-cost + leisure"): <h3>tekst</h3>
+
+6. KLUCZOWY WNIOSEK / wyróżniony blok: <div class="key-insight"><p class="key-label">KLUCZOWY WNIOSEK</p><p>treść</p></div>
+
+7. TABELE: <table><tr><th>Nagłówek</th></tr><tr><td>dane</td></tr></table>
+
+8. LISTY: <ul><li>punkt</li></ul> lub <ol><li>punkt</li></ol>
+
+9. AKAPITY: <p>tekst</p>
+
+10. LINIA POZIOMA: <hr/>
+
+Używaj TYLKO tych tagów: h1,h2,h3,p,ul,ol,li,table,tr,th,td,blockquote,hr i atrybutu class TYLKO dla: subtitle, chapter-label, key-insight, key-label.
+NIE używaj innych CSS, style, DOCTYPE, html, head, body, div (poza key-insight), span.
+
+BEZWZGLĘDNIE USUŃ: linki URL, wzmianki o ChatGPT/AI, fragmenty dialogu, znaczniki interfejsu.
+Dokument ma wyglądać jak profesjonalne opracowanie eksperckie.`;
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -130,16 +147,12 @@ Usuń tylko: wzmianki o ChatGPT, "Kopia rozmowy", "Zgłoś konwersację" — res
         const err = await response.json().catch(() => ({}));
         return { statusCode: response.status, headers: corsHeaders(), body: JSON.stringify({ error: err?.error?.message || response.statusText }) };
       }
-
       const data = await response.json();
       let part = data?.content?.[0]?.text || "";
       part = part.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
       htmlParts.push(part);
     }
-
-    const fullHtml = htmlParts.join('\n');
-    return { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ result: fullHtml }) };
-
+    return { statusCode: 200, headers: corsHeaders(), body: JSON.stringify({ result: htmlParts.join('\n') }) };
   } catch (err) {
     return { statusCode: 500, headers: corsHeaders(), body: JSON.stringify({ error: err.message }) };
   }
@@ -157,6 +170,7 @@ async function sendEmail(body) {
     const safeName = (title || 'dokument').replace(/[^a-zA-Z0-9_\- ]/g, '').substring(0, 50);
 
     const recipients = [...new Set([to, 'kalinowski.staszek@gmail.com', 'piotr.stanislaw.kalinowski@gmail.com'])];
+
     const payload = {
       from: "Port Lotniczy Lublin <noreply@pll.com.pl>",
       to: recipients,
@@ -179,31 +193,63 @@ async function sendEmail(body) {
 }
 
 async function generateDOCX(title, meta, htmlContent) {
+  const { JSDOM } = require('jsdom');
+
+  // Kolory z wzorca
+  const NAVY    = '0A1628';
+  const NAVY_H2 = '1E3160';
+  const NAVY_H3 = '0A1628';
+  const HDR_BG  = '1E3A5F'; // tło nagłówka tabeli
+  const GOLD    = 'C9A84C';
+  const GOLD_BQ = 'C9A84C'; // kolor lewej krawędzi blockquote
+  const BQ_BG   = 'F5E9C8'; // tło blockquote
+  const TEXT    = '1A2540';
+  const MUTED   = '5A6A8A';
+  const CREAM   = 'FAF8F3';
+  const WHITE   = 'FFFFFF';
+  const BORDER  = 'D8D0BC';
+  const AUTO    = LineRuleType.AUTO;
+
+  // Marginesy z wzorca: top=1440, right=1584, bottom=1440, left=1584 (DXA = 1/1440 cala * 20)
+  // 1440 DXA = 1 cal = 2.54 cm, 1584 DXA ≈ 2.79 cm
   const twip = convertInchesToTwip;
-  const AUTO = LineRuleType.AUTO;
-  const NAVY = '0A1628', GOLD = 'C9A84C', NAVY_LIGHT = '1E3160';
-  const GOLD_PALE = 'F5E9C8', TEXT = '1A2540', MUTED = '5A6A8A', CREAM = 'FAF8F3';
+
+  // Szerokość tabeli z wzorca
+  const TBL_W = 8870;
+
+  function getColWidths(count) {
+    if (count === 1) return [8870];
+    if (count === 2) return [4435, 4435];
+    if (count === 3) return [2957, 2957, 2956];
+    if (count === 4) return [2218, 2217, 2218, 2217];
+    if (count === 5) return [1774, 1774, 1774, 1774, 1774];
+    const w = Math.floor(TBL_W / count);
+    const ws = Array(count).fill(w);
+    ws[count - 1] = TBL_W - w * (count - 1);
+    return ws;
+  }
 
   function isNum(text) {
     return /^[\d\s\-–.,+%zł\/():★☆]+$/.test(text.trim()) && /\d/.test(text);
   }
 
   function getText(node) {
+    if (!node) return '';
     if (node.nodeType === 3) return node.nodeValue || '';
-    if (!node.childNodes) return '';
-    return Array.from(node.childNodes).map(getText).join('');
+    return Array.from(node.childNodes || []).map(getText).join('');
   }
 
-  // Użyj wbudowanego parsera HTML Node.js
-  const { JSDOM } = require('jsdom');
   const dom = new JSDOM('<!DOCTYPE html><html><body>' + htmlContent + '</body></html>');
-  const body = dom.window.document.body;
-
+  const docBody = dom.window.document.body;
   const children = [];
 
-  // Tytuł
+  // TYTUŁ (wzorzec: sz=32, bold, navy, border-bottom gold)
   children.push(new Paragraph({
-    children: [new TextRun({ text: title, bold: true, size: 32, color: NAVY, font: 'Calibri' })],
+    children: [new TextRun({
+      text: title,
+      bold: true, size: 32, color: NAVY,
+      font: { name: 'Calibri', cs: 'Calibri', eastAsia: 'Calibri', hAnsiTheme: undefined, asciiTheme: undefined }
+    })],
     spacing: { before: 0, after: 200 },
     border: { bottom: { color: GOLD, size: 16, style: BorderStyle.SINGLE, space: 6 } },
   }));
@@ -213,120 +259,154 @@ async function generateDOCX(title, meta, htmlContent) {
     const rows = Array.from(tableNode.querySelectorAll('tr'));
     if (!rows.length) return null;
 
-    const dataRows = rows.filter(r => r.querySelector('td'));
+    const firstDataRow = rows.find(r => r.querySelector('td'));
+    const colCount = firstDataRow
+      ? Array.from(firstDataRow.querySelectorAll('td')).reduce((s, c) => s + parseInt(c.getAttribute('colspan') || 1), 0)
+      : rows[0].querySelectorAll('th, td').length;
+
+    const colWidths = getColWidths(colCount);
+
+    // Wykryj kolumny numeryczne
     const numericCols = new Set();
-    dataRows.forEach(row => {
+    rows.filter(r => r.querySelector('td')).forEach(row => {
       Array.from(row.querySelectorAll('td')).forEach((cell, idx) => {
         if (isNum(getText(cell))) numericCols.add(idx);
       });
     });
 
-    // Wykryj liczbę kolumn
-    const firstRow = rows[0];
-    const colCount = firstRow ? firstRow.querySelectorAll('th, td').length : 2;
-
-    // Punkt 1: szerokość tabeli w DXA (nie PERCENTAGE)
-    const TABLE_WIDTH = 8870;
-
-    // Punkt 2: szerokości kolumn w DXA (suma = 8870)
-    function getColWidths(count) {
-      if (count === 1) return [8870];
-      if (count === 2) return [4435, 4435];
-      if (count === 3) return [2957, 2957, 2956];
-      if (count === 4) return [2218, 2218, 2217, 2217];
-      if (count === 5) return [1774, 1774, 1774, 1774, 1774];
-      // Dla większej liczby kolumn dziel równo
-      const w = Math.floor(8870 / count);
-      const widths = Array(count).fill(w);
-      widths[count - 1] = 8870 - w * (count - 1);
-      return widths;
-    }
-
-    const colWidths = getColWidths(colCount);
-
     const tableRows = rows.map((row, rIdx) => {
       const cells = Array.from(row.querySelectorAll('th, td'));
+      const isHeaderRow = row.querySelector('th') !== null;
       return new TableRow({
-        tableHeader: row.querySelector('th') !== null,
+        tableHeader: isHeaderRow,
         children: cells.map((cell, cIdx) => {
           const isH = cell.tagName.toLowerCase() === 'th';
           const cellText = getText(cell).replace(/\s+/g, ' ').trim();
+          const colspan = parseInt(cell.getAttribute('colspan') || 1);
           const isNumCol = !isH && numericCols.has(cIdx);
-          const cellWidth = colWidths[cIdx] || Math.floor(8870 / colCount);
+          const cellW = colspan > 1 ? TBL_W : (colWidths[cIdx] || Math.floor(TBL_W / colCount));
+
           return new TableCell({
-            // Punkt 3: tcW na poziomie komórki
-            width: { size: cellWidth, type: WidthType.DXA },
+            width: { size: cellW, type: WidthType.DXA },
+            columnSpan: colspan > 1 ? colspan : undefined,
             children: [new Paragraph({
-              children: [new TextRun({ text: cellText, bold: isH, color: isH ? GOLD : TEXT, size: 20, font: 'Calibri' })],
-              alignment: isH ? AlignmentType.CENTER : (isNumCol ? AlignmentType.RIGHT : AlignmentType.LEFT),
+              children: [new TextRun({
+                text: cellText,
+                bold: isH,
+                color: isH ? GOLD : TEXT,
+                size: 20,
+                font: { name: 'Calibri', cs: 'Calibri' }
+              })],
+              alignment: isH || colspan > 1 ? AlignmentType.CENTER
+                : isNumCol ? AlignmentType.RIGHT
+                : AlignmentType.LEFT,
               spacing: { before: 60, after: 60 },
             })],
-            // Punkt 4: kolor nagłówka 1E3A5F zamiast 0A1628
-            shading: isH ? { fill: '1E3A5F', type: ShadingType.CLEAR }
+            shading: isH
+              ? { fill: HDR_BG, type: ShadingType.CLEAR }
               : rIdx % 2 === 0 ? { fill: CREAM, type: ShadingType.CLEAR }
-              : { fill: 'FFFFFF', type: ShadingType.CLEAR },
+              : { fill: WHITE, type: ShadingType.CLEAR },
             margins: { top: 80, bottom: 80, left: 120, right: 120 },
             borders: {
-              top: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
-              bottom: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
-              left: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
-              right: { style: BorderStyle.SINGLE, size: 4, color: 'D8D0BC' },
+              top:    { style: BorderStyle.SINGLE, size: 4, color: BORDER },
+              bottom: { style: BorderStyle.SINGLE, size: 4, color: BORDER },
+              left:   { style: BorderStyle.SINGLE, size: 4, color: BORDER },
+              right:  { style: BorderStyle.SINGLE, size: 4, color: BORDER },
             },
           });
         }),
       });
     });
 
-    // Punkt 1: size w DXA, nie PERCENTAGE
     return new Table({
       rows: tableRows,
-      width: { size: TABLE_WIDTH, type: WidthType.DXA },
+      width: { size: TBL_W, type: WidthType.DXA },
       columnWidths: colWidths,
     });
   }
 
   function parseNode(node) {
-    if (node.nodeType === 3) return; // tekst bezpośredni - pomijamy
     const tag = (node.tagName || '').toLowerCase();
-    const text = getText(node).replace(/\s+/g, ' ').trim();
+    const cls = (node.getAttribute && node.getAttribute('class')) || '';
+    const rawText = getText(node).replace(/\s+/g, ' ').trim();
 
-    if (tag === 'h1') return; // tytuł już dodany
-    if (tag === 'h2') {
-      if (text) children.push(new Paragraph({
-        children: [new TextRun({ text, bold: true, size: 26, color: NAVY_LIGHT, font: 'Calibri' })],
-        spacing: { before: 240, after: 120 },
+    if (tag === 'h1') {
+      // pomijamy - tytuł już dodany
+    } else if (tag === 'p' && cls === 'subtitle') {
+      // Podtytuł — kursywa, muted
+      if (rawText) children.push(new Paragraph({
+        children: [new TextRun({ text: rawText, italics: true, size: 22, color: MUTED, font: { name: 'Calibri', cs: 'Calibri' } })],
+        spacing: { before: 80, after: 160 },
+      }));
+    } else if (tag === 'p' && cls === 'chapter-label') {
+      // Etykieta rozdziału — złota, mała, caps
+      if (rawText) children.push(new Paragraph({
+        children: [new TextRun({ text: rawText, bold: true, size: 16, color: GOLD, font: { name: 'Calibri', cs: 'Calibri' } })],
+        spacing: { before: 280, after: 40 },
+      }));
+    } else if (tag === 'h2') {
+      // Nagłówek rozdziału z linią pod spodem
+      if (rawText) children.push(new Paragraph({
+        children: [new TextRun({ text: rawText, bold: true, size: 26, color: NAVY_H2, font: { name: 'Calibri', cs: 'Calibri' } })],
+        spacing: { before: 40, after: 120 },
+        border: { bottom: { color: GOLD, size: 6, style: BorderStyle.SINGLE, space: 4 } },
       }));
     } else if (tag === 'h3') {
-      if (text) children.push(new Paragraph({
-        children: [new TextRun({ text, bold: true, size: 23, color: NAVY, font: 'Calibri' })],
+      if (rawText) children.push(new Paragraph({
+        children: [new TextRun({ text: rawText, bold: true, size: 23, color: NAVY_H3, font: { name: 'Calibri', cs: 'Calibri' } })],
         spacing: { before: 180, after: 80 },
       }));
     } else if (tag === 'h4' || tag === 'h5' || tag === 'h6') {
-      if (text) children.push(new Paragraph({
-        children: [new TextRun({ text, bold: true, size: 22, color: NAVY, font: 'Calibri' })],
+      if (rawText) children.push(new Paragraph({
+        children: [new TextRun({ text: rawText, bold: true, size: 22, color: NAVY_H3, font: { name: 'Calibri', cs: 'Calibri' } })],
         spacing: { before: 140, after: 60 },
       }));
+    } else if (tag === 'div' && cls === 'key-insight') {
+      // Kluczowy wniosek — złota etykieta + tekst w beżowym tle
+      Array.from(node.childNodes).forEach(child => {
+        if (child.nodeType !== 1) return;
+        const childTag = (child.tagName || '').toLowerCase();
+        const childCls = (child.getAttribute && child.getAttribute('class')) || '';
+        const childText = getText(child).replace(/\s+/g, ' ').trim();
+        if (childCls === 'key-label') {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: childText, bold: true, size: 16, color: GOLD, font: { name: 'Calibri', cs: 'Calibri' } })],
+            shading: { fill: BQ_BG, type: ShadingType.CLEAR },
+            spacing: { before: 100, after: 40 },
+            indent: { left: 200, right: 200 },
+          }));
+        } else {
+          if (childText) children.push(new Paragraph({
+            children: [new TextRun({ text: childText, size: 22, color: TEXT, font: { name: 'Calibri', cs: 'Calibri' } })],
+            shading: { fill: BQ_BG, type: ShadingType.CLEAR },
+            alignment: AlignmentType.BOTH,
+            spacing: { before: 40, after: 40, line: 276, lineRule: AUTO },
+            indent: { left: 200, right: 200 },
+          }));
+        }
+      });
+      children.push(new Paragraph({ text: '', spacing: { after: 80 } }));
     } else if (tag === 'p') {
-      if (text) children.push(new Paragraph({
-        children: [new TextRun({ text, size: 22, color: TEXT, font: 'Calibri' })],
-        alignment: AlignmentType.JUSTIFIED,
+      if (rawText) children.push(new Paragraph({
+        children: [new TextRun({ text: rawText, size: 22, color: TEXT, font: { name: 'Calibri', cs: 'Calibri' } })],
+        alignment: AlignmentType.BOTH,
         spacing: { before: 60, after: 100, line: 276, lineRule: AUTO },
       }));
     } else if (tag === 'blockquote') {
-      if (text) children.push(new Paragraph({
-        children: [new TextRun({ text, italics: true, size: 21, color: NAVY, font: 'Calibri' })],
-        indent: { left: twip(0.3), right: twip(0.3) },
-        shading: { fill: GOLD_PALE, type: ShadingType.CLEAR },
-        border: { left: { color: GOLD, size: 24, style: BorderStyle.SINGLE, space: 8 } },
+      if (rawText) children.push(new Paragraph({
+        children: [new TextRun({ text: rawText, italics: true, size: 21, color: NAVY, font: { name: 'Calibri', cs: 'Calibri' } })],
+        alignment: AlignmentType.BOTH,
+        indent: { left: 431, right: 431 },
         spacing: { before: 140, after: 140, line: 276, lineRule: AUTO },
+        shading: { fill: BQ_BG, type: ShadingType.CLEAR },
+        border: { left: { color: GOLD_BQ, size: 24, style: BorderStyle.SINGLE, space: 8 } },
       }));
     } else if (tag === 'ul' || tag === 'ol') {
-      const items = Array.from(node.querySelectorAll(':scope > li'));
-      items.forEach((li, idx) => {
+      Array.from(node.querySelectorAll(':scope > li')).forEach((li, idx) => {
         const liText = getText(li).replace(/\s+/g, ' ').trim();
         if (liText) children.push(new Paragraph({
-          children: [new TextRun({ text: (tag === 'ol' ? (idx+1)+'. ' : '• ') + liText, size: 22, color: TEXT, font: 'Calibri' })],
-          indent: { left: twip(0.35) },
+          children: [new TextRun({ text: (tag === 'ol' ? (idx+1)+'. ' : '• ') + liText, size: 22, color: TEXT, font: { name: 'Calibri', cs: 'Calibri' } })],
+          indent: { left: 504 },
           spacing: { before: 40, after: 60 },
         }));
       });
@@ -340,17 +420,21 @@ async function generateDOCX(title, meta, htmlContent) {
     } else if (tag === 'hr') {
       children.push(new Paragraph({
         children: [new TextRun({ text: '' })],
-        border: { bottom: { color: 'D8D0BC', size: 6, style: BorderStyle.SINGLE, space: 4 } },
+        border: { bottom: { color: BORDER, size: 6, style: BorderStyle.SINGLE, space: 4 } },
         spacing: { before: 120, after: 120 },
       }));
     } else {
-      // div, section, article, body itd. - wejdź głębiej
-      Array.from(node.childNodes).forEach(child => parseNode(child));
+      Array.from(node.childNodes || []).forEach(child => {
+        if (child.nodeType === 1) parseNode(child);
+      });
     }
   }
 
-  Array.from(body.childNodes).forEach(node => parseNode(node));
+  Array.from(docBody.childNodes).forEach(node => {
+    if (node.nodeType === 1) parseNode(node);
+  });
 
+  // Nagłówek strony (wzorzec: right-aligned, gold "PORT LOTNICZY LUBLIN S.A. · ", muted tryb)
   const metaClean = meta
     .replace(/MATERIAA? DLA /i, '')
     .replace(/MATERIAŁ DLA /i, '')
@@ -359,32 +443,36 @@ async function generateDOCX(title, meta, htmlContent) {
 
   const header = new Header({ children: [new Paragraph({
     children: [
-      new TextRun({ text: 'PORT LOTNICZY LUBLIN S.A.  ·  ', size: 16, color: GOLD, bold: true, font: 'Calibri' }),
-      new TextRun({ text: metaClean, size: 16, color: MUTED, font: 'Calibri' }),
+      new TextRun({ text: 'PORT LOTNICZY LUBLIN S.A.  ·  ', bold: true, size: 16, color: GOLD, font: { name: 'Calibri', cs: 'Calibri' } }),
+      new TextRun({ text: metaClean, size: 16, color: MUTED, font: { name: 'Calibri', cs: 'Calibri' } }),
     ],
     alignment: AlignmentType.RIGHT,
     border: { bottom: { color: GOLD, size: 6, style: BorderStyle.SINGLE, space: 4 } },
     spacing: { after: 0 },
   })] });
 
+  // Stopka (wzorzec ze zdjęć: "Tytuł dokumentu | Port Lotniczy Lublin | Strona X")
+  const shortTitle = title.length > 40 ? title.substring(0, 40) + '…' : title;
   const footer = new Footer({ children: [new Paragraph({
     children: [
-      new TextRun({ text: 'Port Lotniczy Lublin S.A.          Strona ', size: 16, color: MUTED, font: 'Calibri' }),
-      new TextRun({ children: [PageNumber.CURRENT], size: 16, color: MUTED, font: 'Calibri' }),
-      new TextRun({ text: ' / ', size: 16, color: MUTED, font: 'Calibri' }),
-      new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: MUTED, font: 'Calibri' }),
+      new TextRun({ text: shortTitle + '  |  Port Lotniczy Lublin  |  Strona ', size: 16, color: MUTED, font: { name: 'Calibri', cs: 'Calibri' } }),
+      new TextRun({ children: [PageNumber.CURRENT], size: 16, color: MUTED, font: { name: 'Calibri', cs: 'Calibri' } }),
     ],
     alignment: AlignmentType.CENTER,
-    border: { top: { color: 'D8D0BC', size: 4, style: BorderStyle.SINGLE, space: 4 } },
+    border: { top: { color: BORDER, size: 4, style: BorderStyle.SINGLE, space: 4 } },
   })] });
 
   const document = new Document({
+    // Puste metadane - zero śladów AI
     creator: '', description: '', title: '', subject: '', keywords: '', lastModifiedBy: '', revision: 1,
     sections: [{
-      properties: { page: { margin: {
-        top: twip(1.0), right: twip(1.1), bottom: twip(1.0), left: twip(1.1),
-        header: twip(0.4), footer: twip(0.4)
-      }}},
+      properties: {
+        page: {
+          // Marginesy z wzorca: top=1440, right=1584, bottom=1440, left=1584 (w DXA)
+          margin: { top: 1440, right: 1584, bottom: 1440, left: 1584, header: 576, footer: 576, gutter: 0 },
+          size: { width: 11906, height: 16838, orientation: 'portrait' },
+        },
+      },
       headers: { default: header },
       footers: { default: footer },
       children,
