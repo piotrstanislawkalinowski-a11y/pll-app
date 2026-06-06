@@ -196,10 +196,10 @@ async function generateDOCX(title, meta, htmlContent) {
   const { JSDOM } = require('jsdom');
 
   // Kolory z wzorca
-  const NAVY    = '0A1628';
-  const NAVY_H2 = '1E3160';
-  const NAVY_H3 = '0A1628';
-  const HDR_BG  = '1E3A5F'; // tło nagłówka tabeli
+  const NAVY    = '1E3A5F'; // tytuł, body navy — średni granat
+  const NAVY_H2 = '1C3D6B'; // H2 nagłówki rozdziałów — nieco ciemniejszy
+  const NAVY_H3 = '1E3A5F'; // H3 podsekcje
+  const HDR_BG  = '1E3A5F'; // tło nagłówka tabeli — z wzorca XML
   const GOLD    = 'C9A84C';
   const GOLD_BQ = 'C9A84C'; // kolor lewej krawędzi blockquote
   const BQ_BG   = 'F5E9C8'; // tło blockquote
@@ -393,13 +393,13 @@ async function generateDOCX(title, meta, htmlContent) {
         spacing: { before: 60, after: 100, line: 276, lineRule: AUTO },
       }));
     } else if (tag === 'blockquote') {
+      // Executive summary — kursywa, beżowe tło, BEZ lewej krawędzi (jak na zdjęciach)
       if (rawText) children.push(new Paragraph({
         children: [new TextRun({ text: rawText, italics: true, size: 21, color: NAVY, font: { name: 'Calibri', cs: 'Calibri' } })],
         alignment: AlignmentType.BOTH,
-        indent: { left: 431, right: 431 },
+        indent: { left: 200, right: 200 },
         spacing: { before: 140, after: 140, line: 276, lineRule: AUTO },
         shading: { fill: BQ_BG, type: ShadingType.CLEAR },
-        border: { left: { color: GOLD_BQ, size: 24, style: BorderStyle.SINGLE, space: 8 } },
       }));
     } else if (tag === 'ul' || tag === 'ol') {
       Array.from(node.querySelectorAll(':scope > li')).forEach((li, idx) => {
