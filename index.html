@@ -37,10 +37,17 @@
   .btn:disabled{opacity:.4;cursor:not-allowed}
   .btn-ghost{background:transparent;color:var(--gold);border:1px solid rgba(201,168,76,.4)}
   .btn-ghost:hover:not(:disabled){background:rgba(201,168,76,.1);border-color:var(--gold)}
-  .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy);font-weight:600}
+  .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-light));color:#000;font-weight:600}
   .btn-gold:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 16px rgba(201,168,76,.35)}
   .btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
   .btn-outline:hover:not(:disabled){background:var(--gold-pale);border-color:var(--gold)}
+  .btn-navy{background:transparent;color:#000;font-weight:600;border:2px solid var(--navy)}
+  .btn-navy:hover:not(:disabled){background:rgba(10,22,40,.08);transform:translateY(-1px)}
+  .btn-navy-mid{background:transparent;color:#000;font-weight:600;border:2px solid var(--navy-mid)}
+  .btn-navy-mid:hover:not(:disabled){background:rgba(19,32,64,.08);transform:translateY(-1px)}
+  .btn-navy-light{background:transparent;color:#000;font-weight:600;border:2px solid var(--navy-light)}
+  .btn-navy-light:hover:not(:disabled){background:rgba(30,49,96,.08);transform:translateY(-1px)}
+  .btn:disabled{opacity:0.4;cursor:not-allowed}
   .btn-navy{background:var(--navy-light);color:var(--white);border:1px solid rgba(255,255,255,.1)}
   .btn-navy:hover:not(:disabled){background:var(--navy-mid)}
 
@@ -152,7 +159,7 @@
   }
   @media(max-width:600px){
     .header{padding:0 12px}.logo-text{font-size:13px}
-    .btn span:last-child{display:none}.toolbar{gap:4px}
+    .btn span:last-child{display:inline}.toolbar{gap:4px;flex-wrap:wrap}
     .doc-area{padding:12px}.doc-body{padding:16px}
     .doc-header-band{padding:14px 16px}
   }
@@ -183,10 +190,10 @@
       <button class="mode-tab active" data-mode="rada" onclick="setMode('rada')" style="color:var(--text-muted)">Rada Nadzorcza</button>
       <button class="mode-tab" data-mode="zarzad" onclick="setMode('zarzad')" style="color:var(--text-muted)">Zarząd</button>
     </div>
-    <button class="btn btn-gold" id="btnPaste" onclick="pasteAndProcess()">📋 <span>Wklej i formatuj</span></button>
-    <button class="btn btn-outline" id="btnCorrect" onclick="showCorrectModal()" disabled>📷 <span>Popraw</span></button>
-    <button class="btn btn-outline" id="btnEmail" onclick="showEmailModal()" disabled>✉️ <span>E-mail</span></button>
-    <button class="btn btn-outline" id="btnPrint" onclick="window.print()" disabled>🖨️ <span>Drukuj</span></button>
+    <button class="btn btn-gold" id="btnPaste" onclick="pasteAndProcess()">📋 Wklej i formatuj</button>
+    <button class="btn btn-navy-light" id="btnCorrect" onclick="showCorrectModal()" disabled>📷 Popraw zdjęciem</button>
+    <button class="btn btn-navy-mid" id="btnEmail" onclick="showEmailModal()" disabled>✉️ Wyślij e-mail</button>
+    <button class="btn btn-navy" id="btnPrint" onclick="window.print()" disabled>🖨️ Wydrukuj</button>
   </div>
 </div>
 
