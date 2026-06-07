@@ -199,24 +199,31 @@ async function generateDOCX(title, meta, htmlContent) {
     rows.filter(r=>r.querySelector('td')).forEach(row=>
       Array.from(row.querySelectorAll('td')).forEach((c,i)=>{ if(isNum(getText(c))) numCols.add(i); }));
 
+    const dataRows = rows.filter(r=>r.querySelector('td'));
     const tRows = rows.map((row,rIdx)=>{
       const cells = Array.from(row.querySelectorAll('th,td'));
       const isHRow = !!row.querySelector('th');
+      const dataIdx = dataRows.indexOf(row);
+      const isLastData = dataIdx === dataRows.length - 1;
+      const isEven = dataIdx % 2 === 1;
       return new TableRow({ tableHeader: isHRow, children: cells.map((cell,cIdx)=>{
         const isH = cell.tagName.toLowerCase()==='th';
         const txt = getText(cell).replace(/\s+/g,' ').trim();
         const cs  = parseInt(cell.getAttribute('colspan')||1);
         const isN = !isH && numCols.has(cIdx);
         const cw  = cs>1 ? TW : (colWidths[cIdx]||Math.floor(TW/colCount));
+        // tło: nagłówek=granat, ostatni wiersz=lekki złoty, parzyste=lekki szary
+        const fill = isH ? 'D6E0EC' : isLastData ? 'FDF6E7' : isEven ? 'F5F5F5' : 'FFFFFF';
+        const textColor = isH ? NAVY : BLACK;
         return new TableCell({
           width: { size: cw, type: WidthType.DXA },
           columnSpan: cs>1 ? cs : undefined,
           children: [new Paragraph({
-            children: [new TextRun({ text: txt, bold: isH, size: S, color: BLACK, font: FH })],
+            children: [new TextRun({ text: txt, bold: isH||isLastData, size: S, color: textColor, font: FH })],
             alignment: isH||cs>1 ? AlignmentType.CENTER : isN ? AlignmentType.RIGHT : AlignmentType.LEFT,
             spacing: { before: 40, after: 40 },
           })],
-          shading: { fill: 'FFFFFF', type: ShadingType.CLEAR },
+          shading: { fill, type: ShadingType.CLEAR },
           margins: { top: 50, bottom: 50, left: 100, right: 100 },
           borders: {
             top:    { style: BorderStyle.SINGLE, size: isH?10:4, color: isH?NAVY:LINE_C },
@@ -334,8 +341,9 @@ async function generateDOCX(title, meta, htmlContent) {
 
   // ── NAGŁÓWEK STRONY ──
   const metaClean = meta
-    .replace(/MATERIAA? DLA /i,'').replace(/MATERIAŁ DLA /i,'')
-    .replace(/ · PORT LOTNICZY LUBLIN S\.A\./gi,'').trim();
+    .replace(/ · PORT LOTNICZY LUBLIN S\.A\./gi,'')
+    .replace(/PORT LOTNICZY LUBLIN S\.A\. · /gi,'')
+    .trim();
 
   const header = new Header({ children: [
     new Paragraph({
@@ -359,7 +367,7 @@ async function generateDOCX(title, meta, htmlContent) {
     new Paragraph({
       children: [new TextRun({ text: '' })],
       border: { top: { color: LINE_C, size: 4, style: BorderStyle.SINGLE, space: 0 } },
-      spacing: { before: 0, after: 40 },
+      spacing: { before: 0, after: 20 },
     }),
     new Paragraph({
       children: [
@@ -368,6 +376,11 @@ async function generateDOCX(title, meta, htmlContent) {
         new TextRun({ text: ' / ', size: F, color: GREY, font: FH }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: F, color: GREY, font: FH }),
       ],
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 0, after: 10 },
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: 'POUFNE — Dokument przeznaczony wyłącznie dla członków organu, do którego został zaadresowany. Rozpowszechnianie, kopiowanie lub ujawnianie treści osobom trzecim jest zabronione.', size: 14, color: 'AAAAAA', italics: true, font: FH })],
       alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 0 },
     }),
