@@ -387,7 +387,7 @@ async function generateDOCX(title, meta, htmlContent) {
   ]});
 
   // ── DOKUMENT ──
-  return await Packer.toBuffer(new Document({
+  const rawBuf = await Packer.toBuffer(new Document({
     creator:'', description:'', title:'', subject:'', keywords:'', lastModifiedBy:'', revision:1,
     features: { updateFields: true },
     sections: [{
@@ -400,6 +400,21 @@ async function generateDOCX(title, meta, htmlContent) {
       children: ch,
     }],
   }));
+
+  // ── POST-PROCESSING: zamień w:fldSimple na w:fldChar (niezawodne w Word/Outlook) ──
+  const JSZip = require('jszip');
+  const zip = await JSZip.loadAsync(rawBuf);
+  const footerFile = zip.files['word/footer1.xml'];
+  if (footerFile) {
+    let footerXml = await footerFile.async('string');
+    footerXml = footerXml
+      .replace(/<w:fldSimple w:instr="PAGE"><w:r><w:t[^>]*>[^<]*<\/w:t><\/w:r><\/w:fldSimple>/g,
+        '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>')
+      .replace(/<w:fldSimple w:instr="NUMPAGES"><w:r><w:t[^>]*>[^<]*<\/w:t><\/w:r><\/w:fldSimple>/g,
+        '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>');
+    zip.file('word/footer1.xml', footerXml);
+  }
+  return await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
 function corsHeaders() {
