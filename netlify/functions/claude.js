@@ -123,14 +123,21 @@ TAGI:
 - <h1> tytuł (tylko w pierwszym fragmencie)
 - <p class="subtitle"> podtytuł
 - <blockquote> executive summary
-- <p class="chapter-label">ROZDZIAŁ 01</p> + <h2> nagłówek rozdziału
-- <h3> podsekcja
+- <p class="chapter-label">ROZDZIAŁ 01</p> — ZAWSZE przed każdym nagłówkiem rozdziału, numeruj kolejno 01, 02, 03...
+- <h2> nagłówek rozdziału — ZAWSZE zaraz po chapter-label
+- <h3> podsekcja — dla podrozdziałów bez etykiety
 - <div class="key-insight"><p class="key-label">KLUCZOWY WNIOSEK</p><p>treść</p></div>
 - <table><tr><th></th></tr><tr><td></td></tr></table>
 - <ul><li></li></ul> tylko dla list 5+ elementów lub KPI
 - <ol><li></li></ol> tylko dla kroków sekwencyjnych
 - <p> akapit i narracja
 - <hr/>
+
+SPÓJNOŚĆ FORMATOWANIA — stosuj ten sam tag dla analogicznych treści:
+- Każdy główny rozdział = chapter-label + h2
+- Każda podsekcja = h3
+- Każdy wyróżniony wniosek = key-insight
+- Executive summary na początku = blockquote
 
 Zwróć TYLKO HTML, bez markdown, bez backtick.`;
 
@@ -307,8 +314,8 @@ async function generateDOCX(title, meta, htmlContent) {
 
     } else if (tag==='p' && cls==='chapter-label') {
       if (raw) ch.push(new Paragraph({
-        children: [new TextRun({ text: raw, bold: true, size: SZ_FOOT, color: C_GOLD, font: FH })],
-        spacing: { before: 180, after: 20 },
+        children: [new TextRun({ text: raw.toUpperCase(), bold: true, size: 20, color: C_GOLD, font: FH })],
+        spacing: { before: 200, after: 20 },
       }));
 
     } else if (tag==='h2') {
