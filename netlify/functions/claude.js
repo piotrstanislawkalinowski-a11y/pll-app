@@ -376,6 +376,7 @@ async function generateDOCX(title, meta, htmlContent) {
   // ── DOKUMENT ──
   return await Packer.toBuffer(new Document({
     creator:'', description:'', title:'', subject:'', keywords:'', lastModifiedBy:'', revision:1,
+    features: { updateFields: true },
     sections: [{
       properties: { page: {
         margin: { top:1440, right:1584, bottom:1440, left:1584, header:576, footer:576, gutter:0 },
