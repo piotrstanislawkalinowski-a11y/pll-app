@@ -364,7 +364,6 @@ async function generateDOCX(title, meta, htmlContent) {
   ]});
 
   // ── STOPKA Z NUMERAMI STRON ──
-  const shortTitle = title.length>35 ? title.substring(0,35)+'…' : title;
   const footer = new Footer({ children: [
     new Paragraph({
       children: [new TextRun({ text: '' })],
@@ -373,7 +372,6 @@ async function generateDOCX(title, meta, htmlContent) {
     }),
     new Paragraph({
       children: [
-        new TextRun({ text: shortTitle+'  |  PLL S.A.  |  ', size: F, color: GREY, font: FH }),
         new SimpleField('PAGE', '1'),
         new TextRun({ text: '/', size: F, color: GREY, font: FH }),
         new SimpleField('NUMPAGES', '1'),
@@ -382,7 +380,7 @@ async function generateDOCX(title, meta, htmlContent) {
       spacing: { before: 0, after: 10 },
     }),
     new Paragraph({
-      children: [new TextRun({ text: 'POUFNE — wyłącznie dla adresata. Zakaz rozpowszechniania.', size: 14, color: 'CC0000', italics: true, font: FH })],
+      children: [new TextRun({ text: 'Dokument zawiera informacje poufne w rozumieniu art. 11 ustawy z dnia 16 kwietnia 1993 r. o zwalczaniu nieuczciwej konkurencji. Przeznaczony wyłącznie dla adresata. Nieuprawnione ujawnienie, kopiowanie lub rozpowszechnianie jest zabronione i może stanowić podstawę odpowiedzialności prawnej.', size: 14, color: 'CC0000', italics: true, font: FH })],
       alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 0 },
     }),
