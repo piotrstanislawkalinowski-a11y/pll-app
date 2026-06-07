@@ -1,6 +1,6 @@
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   WidthType, BorderStyle, ShadingType, AlignmentType,
-  Footer, Header, LineRuleType, convertInchesToTwip, PageNumber } = require('docx');
+  Footer, Header, LineRuleType, convertInchesToTwip, PageNumber, SimpleField } = require('docx');
 
 exports.handler = async function (event) {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers: corsHeaders(), body: "" };
@@ -305,10 +305,12 @@ async function generateDOCX(title, meta, htmlContent) {
         alignment: AlignmentType.BOTH,
         indent: { left: 280, right: 280 },
         spacing: { before: 80, after: 80, line: LINE_H, lineRule: A },
+        shading: { fill: 'F7F9FC', type: ShadingType.CLEAR },
         border: {
-          top:    { color: LINE_C, size: 4, style: BorderStyle.SINGLE, space: 3 },
-          bottom: { color: LINE_C, size: 4, style: BorderStyle.SINGLE, space: 3 },
-          left:   { color: GOLD,  size: 16, style: BorderStyle.SINGLE, space: 6 },
+          top:    { color: LINE_C, size: 4, style: BorderStyle.SINGLE, space: 6 },
+          bottom: { color: LINE_C, size: 4, style: BorderStyle.SINGLE, space: 6 },
+          left:   { color: GOLD,  size: 16, style: BorderStyle.SINGLE, space: 8 },
+          right:  { color: LINE_C, size: 4, style: BorderStyle.SINGLE, space: 6 },
         },
       }));
     } else if (tag==='ul'||tag==='ol') {
@@ -362,25 +364,25 @@ async function generateDOCX(title, meta, htmlContent) {
   ]});
 
   // ── STOPKA Z NUMERAMI STRON ──
-  const shortTitle = title.length>44 ? title.substring(0,44)+'…' : title;
+  const shortTitle = title.length>35 ? title.substring(0,35)+'…' : title;
   const footer = new Footer({ children: [
     new Paragraph({
       children: [new TextRun({ text: '' })],
       border: { top: { color: LINE_C, size: 4, style: BorderStyle.SINGLE, space: 0 } },
-      spacing: { before: 0, after: 20 },
+      spacing: { before: 0, after: 16 },
     }),
     new Paragraph({
       children: [
-        new TextRun({ text: shortTitle+'  |  Port Lotniczy Lublin  |  Strona ', size: F, color: GREY, font: FH }),
-        new TextRun({ children: [PageNumber.CURRENT], size: F, color: GREY, font: FH }),
-        new TextRun({ text: ' / ', size: F, color: GREY, font: FH }),
-        new TextRun({ children: [PageNumber.TOTAL_PAGES], size: F, color: GREY, font: FH }),
+        new TextRun({ text: shortTitle+'  |  PLL S.A.  |  ', size: F, color: GREY, font: FH }),
+        new SimpleField('PAGE', '1'),
+        new TextRun({ text: '/', size: F, color: GREY, font: FH }),
+        new SimpleField('NUMPAGES', '1'),
       ],
       alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 10 },
     }),
     new Paragraph({
-      children: [new TextRun({ text: 'POUFNE — Dokument przeznaczony wyłącznie dla członków organu, do którego został zaadresowany. Rozpowszechnianie, kopiowanie lub ujawnianie treści osobom trzecim jest zabronione.', size: 14, color: 'AAAAAA', italics: true, font: FH })],
+      children: [new TextRun({ text: 'POUFNE — wyłącznie dla adresata. Zakaz rozpowszechniania.', size: 14, color: 'CC0000', italics: true, font: FH })],
       alignment: AlignmentType.CENTER,
       spacing: { before: 0, after: 0 },
     }),
